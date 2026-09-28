@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Swiss-style home screen with the same three zoom entry points as the Flutter
+/// Demo home screen with the same three zoom entry points as the Flutter
 /// app: the cart icon, menu category cards and order cards.
 struct HomeView: View {
     @Namespace private var zoom
@@ -18,8 +18,8 @@ struct HomeView: View {
                 }
                 .padding(.vertical)
             }
-            .background(Brand.background)
-            .navigationTitle("Swiss Chalet")
+            .background(Palette.background)
+            .navigationTitle("Demo Kitchen")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -32,7 +32,7 @@ struct HomeView: View {
                                     .font(.caption2.bold())
                                     .foregroundStyle(.white)
                                     .padding(4)
-                                    .background(Circle().fill(Brand.red))
+                                    .background(Circle().fill(Palette.red))
                                     .offset(x: 8, y: -8)
                             }
                     }
@@ -63,12 +63,12 @@ struct HomeView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Pick-Up").font(.headline)
-                Text("30 min | 2990 Eglinton Ave E Scarborough")
+                Text("30 min | 123 Main Street")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Text("Edit").foregroundStyle(Brand.red)
+            Text("Edit").foregroundStyle(Palette.red)
         }
         .padding()
         .background(.background, in: RoundedRectangle(cornerRadius: 12))
@@ -190,7 +190,7 @@ struct OrderCard: View {
                 .font(.subheadline.bold())
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Brand.yellow, in: Capsule())
+                .background(Palette.yellow, in: Capsule())
         }
         .padding()
         .background(.background, in: RoundedRectangle(cornerRadius: 6))

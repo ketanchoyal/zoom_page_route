@@ -17,8 +17,8 @@ Future<void> main() async {
   runApp(const ParityApp());
 }
 
-const brandRed = Color(0xFFD62129);
-const brandYellow = Color(0xFFFABA00);
+const accentRed = Color(0xFFE53935);
+const accentYellow = Color(0xFFFFC107);
 const groupedBackground = Color(0xFFF2F2F7);
 
 class ParityApp extends StatelessWidget {
@@ -29,7 +29,7 @@ class ParityApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: brandRed),
+        colorScheme: ColorScheme.fromSeed(seedColor: accentRed),
         platform: TargetPlatform.iOS,
         scaffoldBackgroundColor: groupedBackground,
       ),
@@ -46,9 +46,9 @@ class MenuCategory {
   final List<Color> colors;
 
   static const all = [
-    MenuCategory(1, 'Rotisserie Chicken', CupertinoIcons.flame_fill, [Colors.orange, Colors.red]),
-    MenuCategory(2, 'Ribs', Icons.restaurant, [Colors.brown, Colors.orange]),
-    MenuCategory(3, 'Wings', CupertinoIcons.heart_fill, [Colors.red, Colors.pink]),
+    MenuCategory(1, 'Burgers', Icons.lunch_dining, [Colors.orange, Colors.red]),
+    MenuCategory(2, 'Pizza', Icons.local_pizza, [Colors.brown, Colors.orange]),
+    MenuCategory(3, 'Salads', Icons.rice_bowl, [Colors.red, Colors.pink]),
     MenuCategory(4, 'Starters', Icons.eco, [Colors.green, Colors.teal]),
     MenuCategory(5, 'Sides', Icons.takeout_dining, [Colors.yellow, Colors.orange]),
     MenuCategory(6, 'Desserts', Icons.cake, [Colors.purple, Colors.pink]),
@@ -64,10 +64,10 @@ class Order {
   final int progress;
 
   static const all = [
-    Order(13011499, '#20260925 1104018', 'Cooking', 21.45, 1),
-    Order(13009486, '#20260609 1103003', 'Placed', 18.20, 0),
-    Order(13008360, '#20260522 1104014', 'On the way', 25.39, 2),
-    Order(13008344, '#20260418 1139002', 'Delivered', 32.10, 3),
+    Order(1001, '#1001', 'Cooking', 21.45, 1),
+    Order(1002, '#1002', 'Placed', 18.20, 0),
+    Order(1003, '#1003', 'On the way', 25.39, 2),
+    Order(1004, '#1004', 'Delivered', 32.10, 3),
   ];
 }
 
@@ -87,7 +87,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Swiss Chalet', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+        title: const Text('Demo Kitchen', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
         centerTitle: true,
         backgroundColor: groupedBackground,
         surfaceTintColor: Colors.transparent,
@@ -101,8 +101,8 @@ class HomeScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
                 child: Badge(
                   label: const Text('4'),
-                  backgroundColor: brandRed,
-                  child: const Icon(CupertinoIcons.bag_fill, color: brandRed),
+                  backgroundColor: accentRed,
+                  child: const Icon(CupertinoIcons.bag_fill, color: accentRed),
                 ),
               ),
             ),
@@ -217,11 +217,11 @@ class _PickupBar extends StatelessWidget {
               children: [
                 Text('Pick-Up', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
                 SizedBox(height: 2),
-                Text('30 min | 2990 Eglinton Ave E Scarborough', style: TextStyle(color: Colors.black54, fontSize: 15)),
+                Text('30 min | 123 Main Street', style: TextStyle(color: Colors.black54, fontSize: 15)),
               ],
             ),
           ),
-          Text('Edit', style: TextStyle(color: brandRed)),
+          Text('Edit', style: TextStyle(color: accentRed)),
         ],
       ),
     );
@@ -281,7 +281,7 @@ class _OrderCard extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10),
             alignment: Alignment.center,
-            decoration: const ShapeDecoration(color: brandYellow, shape: StadiumBorder()),
+            decoration: const ShapeDecoration(color: accentYellow, shape: StadiumBorder()),
             child: const Text('Track Ongoing Order', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -386,12 +386,12 @@ class _CartScreenState extends State<CartScreen> with _CountsLoads {
         padding: const EdgeInsets.all(16),
         children: [
           _Card(children: const [
-            ListTile(title: Text('Pickup location'), trailing: Text('2990 Eglinton Ave E')),
+            ListTile(title: Text('Pickup location'), trailing: Text('123 Main Street')),
             ListTile(title: Text('Pickup time'), trailing: Text('30 min')),
           ]),
           _Card(children: [
             ListTile(
-              title: const Text('Chicken Spring Rolls'),
+              title: const Text('Veggie Spring Rolls'),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -409,7 +409,7 @@ class _CartScreenState extends State<CartScreen> with _CountsLoads {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.all(12),
                 children: [
-                  for (final name in const ['Caesar Salad', 'Chicken Soup', 'Garlic Loaf'])
+                  for (final name in const ['Caesar Salad', 'Chicken Soup', 'Garlic Bread'])
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
                       child: Column(
@@ -525,7 +525,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> with _CountsL
           _ProgressSteps(order.progress),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
-            child: Icon(CupertinoIcons.flame_fill, size: 120, color: brandRed),
+            child: Icon(CupertinoIcons.flame_fill, size: 120, color: accentRed),
           ),
           for (var line = 1; line <= 8; line++) ...[
             Row(

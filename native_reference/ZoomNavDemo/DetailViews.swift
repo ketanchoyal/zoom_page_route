@@ -21,12 +21,12 @@ struct CartView: View {
     var body: some View {
         List {
             Section {
-                LabeledContent("Pickup location", value: "2990 Eglinton Ave E")
+                LabeledContent("Pickup location", value: "123 Main Street")
                 LabeledContent("Pickup time", value: "30 min")
             }
             Section("\(quantity) Items") {
                 HStack {
-                    Text("Chicken Spring Rolls")
+                    Text("Veggie Spring Rolls")
                     Spacer()
                     Stepper("\(quantity)", value: $quantity, in: 1...20).fixedSize()
                 }
@@ -34,7 +34,7 @@ struct CartView: View {
             Section("Your Recommended Items") {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack {
-                        ForEach(["Caesar Salad", "Chicken Soup", "Garlic Loaf"], id: \.self) { name in
+                        ForEach(["Caesar Salad", "Chicken Soup", "Garlic Bread"], id: \.self) { name in
                             VStack {
                                 RoundedRectangle(cornerRadius: 8).fill(.orange.gradient).frame(width: 120, height: 80)
                                 Text(name).font(.caption)
@@ -97,7 +97,7 @@ struct OrderTrackingView: View {
                 ProgressSteps(progress: order.progress)
                 Image(systemName: "flame.fill")
                     .font(.system(size: 120))
-                    .foregroundStyle(Brand.red.gradient)
+                    .foregroundStyle(Palette.red.gradient)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 40)
                 ForEach(1...8, id: \.self) { line in
@@ -116,7 +116,7 @@ struct OrderTrackingView: View {
             }
             .padding()
         }
-        .background(Brand.background)
+        .background(Palette.background)
         .navigationTitle("Order Tracking")
         .toolbar { ToolbarItem(placement: .topBarTrailing) { LoadBadge(count: loads) } }
         .task { loads = LoadCounter.shared.record("order-\(order.id)") }

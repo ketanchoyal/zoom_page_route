@@ -1,8 +1,8 @@
 import SwiftUI
 
-enum Brand {
-    static let red = Color(red: 0.84, green: 0.13, blue: 0.16)
-    static let yellow = Color(red: 0.98, green: 0.73, blue: 0.0)
+enum Palette {
+    static let red = Color(red: 0.90, green: 0.22, blue: 0.21)
+    static let yellow = Color(red: 1.0, green: 0.76, blue: 0.03)
     static let background = Color(uiColor: .systemGroupedBackground)
 }
 
@@ -13,9 +13,9 @@ struct MenuCategory: Identifiable, Hashable {
     let colors: [Color]
 
     static let all: [MenuCategory] = [
-        .init(id: 1, name: "Rotisserie Chicken", symbol: "flame.fill", colors: [.orange, .red]),
-        .init(id: 2, name: "Ribs", symbol: "fork.knife", colors: [.brown, .orange]),
-        .init(id: 3, name: "Wings", symbol: "bird.fill", colors: [.red, .pink]),
+        .init(id: 1, name: "Burgers", symbol: "takeoutbag.and.cup.and.straw.fill", colors: [.orange, .red]),
+        .init(id: 2, name: "Pizza", symbol: "fork.knife", colors: [.brown, .orange]),
+        .init(id: 3, name: "Salads", symbol: "carrot.fill", colors: [.red, .pink]),
         .init(id: 4, name: "Starters", symbol: "leaf.fill", colors: [.green, .teal]),
         .init(id: 5, name: "Sides", symbol: "takeoutbag.and.cup.and.straw.fill", colors: [.yellow, .orange]),
         .init(id: 6, name: "Desserts", symbol: "birthday.cake.fill", colors: [.purple, .pink]),
@@ -40,10 +40,10 @@ struct Order: Identifiable, Hashable {
     let progress: Int // 0...3
 
     static let all: [Order] = [
-        .init(id: 13011499, number: "#20260925 1104018", status: "Cooking", total: 21.45, progress: 1),
-        .init(id: 13009486, number: "#20260609 1103003", status: "Placed", total: 18.20, progress: 0),
-        .init(id: 13008360, number: "#20260522 1104014", status: "On the way", total: 25.39, progress: 2),
-        .init(id: 13008344, number: "#20260418 1139002", status: "Delivered", total: 32.10, progress: 3),
+        .init(id: 1001, number: "#1001", status: "Cooking", total: 21.45, progress: 1),
+        .init(id: 1002, number: "#1002", status: "Placed", total: 18.20, progress: 0),
+        .init(id: 1003, number: "#1003", status: "On the way", total: 25.39, progress: 2),
+        .init(id: 1004, number: "#1004", status: "Delivered", total: 32.10, progress: 3),
     ]
 }
 
