@@ -1,8 +1,18 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 /// Marks [child] as the widget a [ZoomPageRoute] with the same [tag] zooms out
 /// of (and back into when popped).
+///
+/// Tags may repeat (the same product in two carousels, a copy in a hidden
+/// tab). A route then zooms from, in order: the source passed as its
+/// `sourceContext`; the source the finger just went down on; a source that is
+/// painted and on screen; a painted source off screen. Sources that are not
+/// painted (a hidden [IndexedStack] child, [Offstage], zero opacity) are never
+/// used. Tags are compared with `==` across the whole app, so use typed values
+/// such as `('order', id)` when ids of different kinds could collide.
 ///
 /// Unlike a heroine, the source never builds the destination page: the route
 /// builds its page exactly once, and only a live copy of this (small) source
@@ -33,16 +43,58 @@ class ZoomSource extends StatefulWidget {
 
   static final Map<Object, List<_ZoomSourceState>> _registry = {};
 
-  /// The source to zoom from for [tag]: a mounted, on-screen source whose route
+  /// Pointer-downs seen app-wide, so a source can tell whether the latest one
+  /// landed on it (see [_ZoomSourceState._downStamp]).
+  static int _pointerDowns = 0;
+  static bool _trackingPointers = false;
+
+  static void _trackPointers() {
+    if (_trackingPointers) return;
+    _trackingPointers = true;
+    // Global routes run after the hit-tested Listeners for the same event.
+    GestureBinding.instance.pointerRouter.addGlobalRoute((event) {
+      if (event is PointerDownEvent) _pointerDowns++;
+    });
+  }
+
+  static final Set<Object> _warnedTags = {};
+
+  /// The source to zoom from for [tag], among the mounted sources whose route
   /// is the current one. Call it while the pushing route is still current (e.g.
-  /// from the route's constructor).
-  static ZoomSourceHandle? find(Object? tag) {
+  /// from the route's constructor). [context], when given, is a context at or
+  /// below the wanted [ZoomSource] and wins over every other match.
+  static ZoomSourceHandle? find(Object? tag, {BuildContext? context}) {
+    if (context != null) {
+      final explicit = context is StatefulElement && context.state is _ZoomSourceState
+          ? context.state as _ZoomSourceState
+          : context.findAncestorStateOfType<_ZoomSourceState>();
+      if (explicit != null && explicit.widget.tag == tag && explicit._canBeOrigin) return explicit;
+    }
     final sources = _registry[tag];
     if (sources == null) return null;
-    for (final source in sources.reversed) {
-      if (source._canBeOrigin) return source;
+    final painted = [
+      for (final source in sources.reversed)
+        if (source._canBeOrigin && source._isPainted) source,
+    ];
+    if (painted.isEmpty) return null;
+    for (final source in painted) {
+      if (source._downStamp == _pointerDowns && source._downStamp > 0) return source;
     }
-    return null;
+    final onScreen = [
+      for (final source in painted)
+        if (source._isOnScreen) source,
+    ];
+    assert(() {
+      if (onScreen.length > 1 && _warnedTags.add(tag!)) {
+        debugPrint(
+          'ZoomSource: ${onScreen.length} sources on screen share the tag $tag and none was just tapped; '
+          'zooming from the most recently built one. Pass `sourceContext` to ZoomPageRoute, '
+          'or give each source a distinct tag.',
+        );
+      }
+      return true;
+    }());
+    return onScreen.isNotEmpty ? onScreen.first : painted.first;
   }
 
   @override
@@ -75,6 +127,40 @@ class _ZoomSourceState extends State<ZoomSource> implements ZoomSourceHandle {
   bool _tickerEnabled = true;
   Rect _lastRect = Rect.zero;
 
+  /// The value [ZoomSource._pointerDowns] reaches with the latest pointer-down
+  /// that hit this source; equal to it while that is the latest one app-wide.
+  int _downStamp = 0;
+
+  /// Whether every ancestor actually paints this source, i.e. it is not in a
+  /// hidden [IndexedStack] child, under [Offstage] or at zero opacity.
+  bool get _isPainted {
+    final box = context.findRenderObject();
+    if (box == null) return false;
+    RenderObject child = box;
+    for (var parent = box.parent; parent != null; child = parent, parent = parent.parent) {
+      if (!parent.paintsChild(child)) return false;
+      if (parent is RenderIndexedStack && _indexOf(parent, child) != parent.index) return false;
+    }
+    return true;
+  }
+
+  static int _indexOf(RenderIndexedStack stack, RenderObject child) {
+    var index = 0;
+    for (var node = stack.firstChild; node != null; node = stack.childAfter(node), index++) {
+      if (identical(node, child)) return index;
+    }
+    return -1;
+  }
+
+  /// Whether the source's rect overlaps the screen (a list item in the
+  /// scrollable's cache area is built and painted but off screen).
+  bool get _isOnScreen {
+    final view = View.maybeOf(context);
+    if (view == null) return true;
+    final screen = Offset.zero & (view.physicalSize / view.devicePixelRatio);
+    return globalRect.overlaps(screen);
+  }
+
   bool get _canBeOrigin {
     if (!mounted || !_tickerEnabled) return false;
     final box = context.findRenderObject();
@@ -101,6 +187,7 @@ class _ZoomSourceState extends State<ZoomSource> implements ZoomSourceHandle {
   @override
   void initState() {
     super.initState();
+    ZoomSource._trackPointers();
     _register();
   }
 
@@ -172,6 +259,10 @@ class _ZoomSourceState extends State<ZoomSource> implements ZoomSourceHandle {
   @override
   Widget build(BuildContext context) {
     _tickerEnabled = TickerMode.valuesOf(context).enabled;
-    return Opacity(opacity: _hidden ? 0 : 1, child: widget.child);
+    return Listener(
+      // Runs before the global pointer route counts this pointer-down.
+      onPointerDown: (_) => _downStamp = ZoomSource._pointerDowns + 1,
+      child: Opacity(opacity: _hidden ? 0 : 1, child: widget.child),
+    );
   }
 }

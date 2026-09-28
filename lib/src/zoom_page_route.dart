@@ -24,6 +24,7 @@ class ZoomPageRoute<T> extends PageRoute<T> {
   ZoomPageRoute({
     required this.builder,
     required this.tag,
+    BuildContext? sourceContext,
     super.settings,
     ZoomTransitionSpec? spec,
     double? screenCornerRadius,
@@ -35,7 +36,9 @@ class ZoomPageRoute<T> extends PageRoute<T> {
        // disables popGestureEnabled and with it the dismiss gestures.
        super(fullscreenDialog: false) {
     // Looked up now, while the route we're pushed from is still current.
-    _source = ZoomSource.find(tag);
+    // [sourceContext] (at or below a ZoomSource) picks that exact source when
+    // several share [tag]; otherwise the one just tapped wins.
+    _source = ZoomSource.find(tag, context: sourceContext);
   }
 
   final WidgetBuilder builder;
@@ -116,10 +119,21 @@ class ZoomPageRoute<T> extends PageRoute<T> {
       color: fill,
       child: AnimatedBuilder(
         animation: secondaryAnimation,
-        builder: (context, child) => Transform.scale(
-          scale: 1 - (1 - spec.backgroundScale) * secondaryAnimation.value.clamp(0.0, 1.0),
-          child: child,
-        ),
+        builder: (context, child) {
+          final t = secondaryAnimation.value.clamp(0.0, 1.0);
+          // Rounded like the display while it is shrunk, so a coloured app
+          // bar's square corners don't poke out past the screen's shape. The
+          // tree stays the same at rest (only the clip is switched off) so the
+          // route below is never remounted.
+          return Transform.scale(
+            scale: 1 - (1 - spec.backgroundScale) * t,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(screenCornerRadius),
+              clipBehavior: t == 0 ? Clip.none : Clip.antiAlias,
+              child: child,
+            ),
+          );
+        },
         child: child,
       ),
     );

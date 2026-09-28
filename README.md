@@ -33,6 +33,14 @@ Push with the same `tag` as a `ZoomSource` on the current route. With no
 matching source (deep links, pushes from code), the page grows from a slightly
 smaller centred frame.
 
+- Tags may repeat (the same item in two lists, a copy in a hidden tab). The
+  route zooms from, in order: the source given as `sourceContext` (any
+  context at or below that `ZoomSource`); the source the finger just went
+  down on; a source that is painted and on screen; a painted one off screen.
+  Unpainted sources (hidden `IndexedStack` child, `Offstage`, zero opacity)
+  are never used. In debug, two on-screen matches with no tap log a warning.
+  Tags compare with `==` app-wide, so use typed tags like `('order', id)`
+  when ids of different kinds could collide.
 - Mark app-bar / toolbar sources with `ZoomSource(toolbar: true)`: iOS zooms
   out of toolbar items with a quicker spring than out of content. A 36×36
   in-content source zooms at the normal pace, so size is not the cause.
@@ -85,7 +93,7 @@ frame (`native_reference/`, see below).
 | Close spring | ζ ≈ 0.98, response ≈ 0.33 s (6 usable frames) | mass 1, stiffness 365, damping 37.5 |
 | Toolbar source (e.g. cart button) | clearly quicker, slightly bouncier: response ≈ 0.25–0.33 s, ζ ≈ 0.83–0.92 (the iOS 26 glass-button morph blends into the start; varies more between runs) | `ZoomSource(toolbar: true)` → `toolbarOpenSpring` (0.28 s, ζ 0.87), `toolbarCloseSpring` (0.24 s, ζ 0.9) |
 | Background dim | black α ≈ 0.33 × progress | `maxDim` 0.33 |
-| Previous page | shrinks about the screen centre to ≈0.915 as the page opens, holds it while dragging, grows back on close; uncovered area shows the page background | `backgroundScale` 0.915 (via `delegatedTransition`), `backgroundFillColor` (theme scaffold background) |
+| Previous page | content shrinks about the screen centre to ≈0.915 as the page opens, holds it while dragging, grows back on close; uncovered area shows the page background. Natively the navigation bar stays full size, so no corners show | the whole route shrinks (`backgroundScale` 0.915, via `delegatedTransition`), clipped to the display corner radius so a coloured app bar's corners stay inside the screen shape; `backgroundFillColor` (theme scaffold background) |
 | Page shadow | soft and centred: ~15% darker 6 pt out, ~8% at 20 pt | `shadowOpacity` 0.18, `shadowBlur` 40 |
 | Source ↔ page cross-fade | source hidden by ~45% progress | `crossfadeEnd` 0.45 |
 | Page shape | width, centre and aspect ratio (h/w) lerp with progress, so the height lags: 45% of the way at 57% width (iPhone), 38% at 50% (iPad) | same (`ZoomGeometry`) |
