@@ -102,8 +102,10 @@ class ZoomPageRoute<T> extends PageRoute<T> {
   /// Applied by the route below (Material and Cupertino routes accept it): it
   /// recedes to [ZoomTransitionSpec.backgroundScale] while this route is open.
   /// Instance-bound so a zoom route under another zoom route still receives it.
+  /// Null unless [ZoomTransitionSpec.recedeRouteBelow], so the route below
+  /// stays still.
   @override
-  DelegatedTransitionBuilder? get delegatedTransition => _recedeRouteBelow;
+  DelegatedTransitionBuilder? get delegatedTransition => spec.recedeRouteBelow ? _recedeRouteBelow : null;
 
   Widget? _recedeRouteBelow(
     BuildContext context,

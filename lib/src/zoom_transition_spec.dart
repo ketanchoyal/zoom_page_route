@@ -25,6 +25,7 @@ class ZoomTransitionSpec {
     this.maxEdgeDrag = 0.9,
     this.crossfadeEnd = 0.45,
     this.edgeWidth = 24,
+    this.recedeRouteBelow = false,
     this.backgroundScale = 0.915,
     this.backgroundFillColor,
     this.shadowOpacity = 0.18,
@@ -90,8 +91,15 @@ class ZoomTransitionSpec {
   /// Width of the left-edge strip that starts an edge swipe.
   final double edgeWidth;
 
-  /// The route below shrinks about the screen centre to this scale as the
-  /// page opens (1 − (1 − [backgroundScale]) · progress), holds it while the
+  /// Whether the route below recedes (shrinks) while this page is open, as it
+  /// does natively. Off by default: natively only the content recedes and the
+  /// navigation bar stays put, while here the whole route shrinks, which only
+  /// looks right when the app's screens are built for it. When off, the route
+  /// below stays still and [backgroundScale] / [backgroundFillColor] are unused.
+  final bool recedeRouteBelow;
+
+  /// With [recedeRouteBelow], the route below shrinks about the screen centre
+  /// to this scale as the page opens (1 − (1 − [backgroundScale]) · progress), holds it while the
   /// page is dragged, and grows back on close. Native: ≈0.915.
   final double backgroundScale;
 

@@ -3,7 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zoom_page_route/zoom_page_route.dart';
 
 class _Home extends StatefulWidget {
-  const _Home();
+  const _Home({this.recede = true});
+  final bool recede;
   static int inits = 0;
   @override
   State<_Home> createState() => _HomeState();
@@ -22,7 +23,12 @@ class _HomeState extends State<_Home> {
     body: Builder(
       builder: (context) => TextButton(
         onPressed: () => Navigator.of(context).push(
-          ZoomPageRoute<void>(tag: 'x', screenCornerRadius: 40, builder: (_) => const Scaffold(body: Text('page'))),
+          ZoomPageRoute<void>(
+            tag: 'x',
+            spec: ZoomTransitionSpec(recedeRouteBelow: widget.recede),
+            screenCornerRadius: 40,
+            builder: (_) => const Scaffold(body: Text('page')),
+          ),
         ),
         child: const Text('go'),
       ),
@@ -32,9 +38,7 @@ class _HomeState extends State<_Home> {
 
 void main() {
   ClipRRect recedeClip(WidgetTester tester) => tester.widget<ClipRRect>(
-    find
-        .ancestor(of: find.byType(_Home, skipOffstage: false), matching: find.byType(ClipRRect))
-        .first,
+    find.ancestor(of: find.byType(_Home, skipOffstage: false), matching: find.byType(ClipRRect)).first,
   );
 
   testWidgets('the route below is rounded to the display radius only while it is covered, and never remounted', (
@@ -57,5 +61,16 @@ void main() {
     // With nothing on top the framework drops the delegated transition, so
     // the clip is gone altogether.
     expect(find.ancestor(of: find.byType(_Home), matching: find.byType(ClipRRect)), findsNothing);
+  });
+
+  testWidgets('by default the route below stays still (no recede, no clip)', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: _Home(recede: false)));
+    await tester.tap(find.text('go'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    final ancestors = find.ancestor(of: find.byType(_Home, skipOffstage: false), matching: find.byType(ClipRRect));
+    expect(ancestors, findsNothing);
+    expect(ZoomTransitionSpec.standard.recedeRouteBelow, isFalse);
+    await tester.pumpAndSettle();
   });
 }

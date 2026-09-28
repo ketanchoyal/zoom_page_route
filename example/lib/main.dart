@@ -76,8 +76,11 @@ class Order {
 final _loads = <String, int>{};
 int recordLoad(String key) => _loads[key] = (_loads[key] ?? 0) + 1;
 
+/// The parity app recedes the page below like native (off by default).
+final _spec = ZoomTransitionSpec(recedeRouteBelow: true);
+
 void _push(BuildContext context, Object tag, WidgetBuilder builder) {
-  Navigator.of(context).push(ZoomPageRoute<void>(tag: tag, builder: builder));
+  Navigator.of(context).push(ZoomPageRoute<void>(tag: tag, spec: _spec, builder: builder));
 }
 
 class HomeScreen extends StatelessWidget {

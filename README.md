@@ -53,6 +53,12 @@ smaller centred frame.
   dismiss. Native SwiftUI behaves the same (checked side by side). Horizontal
   and nested scrollables don't block it, and the left-edge swipe always works.
   Drag-down dismiss wins over pull-to-refresh at the top of a page.
+- The route below stays still by default. Pass
+  `ZoomTransitionSpec(recedeRouteBelow: true)` to shrink it like iOS does.
+  Natively only the content shrinks and the navigation bar stays put. This
+  route can only shrink the whole screen below (rounded to the display
+  corners), so turn it on only when your screens look right that way. The
+  `example` app turns it on for the parity comparison.
 - `maintainState` (default `true`) is exposed for apps that relied on the page
   being rebuilt when it is covered.
 
@@ -93,7 +99,7 @@ frame (`native_reference/`, see below).
 | Close spring | ζ ≈ 0.98, response ≈ 0.33 s (6 usable frames) | mass 1, stiffness 365, damping 37.5 |
 | Toolbar source (e.g. cart button) | clearly quicker, slightly bouncier: response ≈ 0.25–0.33 s, ζ ≈ 0.83–0.92 (the iOS 26 glass-button morph blends into the start; varies more between runs) | `ZoomSource(toolbar: true)` → `toolbarOpenSpring` (0.28 s, ζ 0.87), `toolbarCloseSpring` (0.24 s, ζ 0.9) |
 | Background dim | black α ≈ 0.33 × progress | `maxDim` 0.33 |
-| Previous page | content shrinks about the screen centre to ≈0.915 as the page opens, holds it while dragging, grows back on close; uncovered area shows the page background. Natively the navigation bar stays full size, so no corners show | the whole route shrinks (`backgroundScale` 0.915, via `delegatedTransition`), clipped to the display corner radius so a coloured app bar's corners stay inside the screen shape; `backgroundFillColor` (theme scaffold background) |
+| Previous page | content shrinks about the screen centre to ≈0.915 as the page opens, holds it while dragging, grows back on close; uncovered area shows the page background. Natively the navigation bar stays full size, so no corners show | off by default (`recedeRouteBelow`); when on, the whole route shrinks (`backgroundScale` 0.915, via `delegatedTransition`), clipped to the display corner radius so a coloured app bar's corners stay inside the screen shape; `backgroundFillColor` (theme scaffold background) |
 | Page shadow | soft and centred: ~15% darker 6 pt out, ~8% at 20 pt | `shadowOpacity` 0.18, `shadowBlur` 40 |
 | Source ↔ page cross-fade | source hidden by ~45% progress | `crossfadeEnd` 0.45 |
 | Page shape | width, centre and aspect ratio (h/w) lerp with progress, so the height lags: 45% of the way at 57% width (iPhone), 38% at 50% (iPad) | same (`ZoomGeometry`) |
