@@ -38,11 +38,12 @@ completely.
 - Tags may repeat (the same item in two lists, a copy in a hidden tab). The
   route zooms from, in order: the source given as `sourceContext` (any
   context at or below that `ZoomSource`); the source the finger just went
-  down on; a source that is painted and on screen; a painted one off screen.
+  down on; the only copy on screen (or, with none on screen, the only painted
+  one). If it is still ambiguous (several copies and no tap to tell them
+  apart) it zooms in without a source rather than from a guessed one.
   Unpainted sources (hidden `IndexedStack` child, `Offstage`, zero opacity)
-  are never used. In debug, two on-screen matches with no tap log a warning.
-  Tags compare with `==` app-wide, so use typed tags like `('order', id)`
-  when ids of different kinds could collide.
+  are never used. With a router, taps already resolve the copy (the route is
+  built during the tap); give pushes from code a unique tag.
 - Mark app-bar / toolbar sources with `ZoomSource(toolbar: true)`: iOS zooms
   out of toolbar items with a quicker spring than out of content, and it does
   not blow the icon up into the page: the button's white glass grows into the

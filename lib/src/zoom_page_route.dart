@@ -42,7 +42,7 @@ class ZoomPageRoute<T> extends PageRoute<T> {
     // Looked up now, while the route we're pushed from is still current.
     // [sourceContext] (at or below a ZoomSource) picks that exact source when
     // several share [tag]; otherwise the one just tapped wins.
-    _source = ZoomSource.find(tag, context: sourceContext);
+    _sourceHandle = ZoomSource.find(tag, context: sourceContext);
   }
 
   final WidgetBuilder builder;
@@ -58,7 +58,19 @@ class ZoomPageRoute<T> extends PageRoute<T> {
   double get screenCornerRadius => _screenCornerRadius ?? defaultScreenCornerRadius();
 
   final bool _maintainState;
-  ZoomSourceHandle? _source;
+  ZoomSourceHandle? _sourceHandle;
+
+  /// The source, switched to its replacement if the original has left the
+  /// tree while this page is open (e.g. its list item was rebuilt).
+  ZoomSourceHandle? get _source {
+    final current = _sourceHandle;
+    if (current == null || current.isAvailable) return current;
+    final replacement = zoomSourceReplacement(tag, current);
+    if (replacement == null) return current;
+    current.show();
+    replacement.hide();
+    return _sourceHandle = replacement;
+  }
 
   final ValueNotifier<double> _dismissProgress = ValueNotifier(0);
 

@@ -10,10 +10,11 @@ import 'package:flutter/widgets.dart';
 ///
 /// Tags may repeat (the same product in two carousels, a copy in a hidden
 /// tab). A route then zooms from, in order: the source passed as its
-/// `sourceContext`; the source the finger just went down on; a source that is
-/// painted and on screen; a painted source off screen. Sources that are not
-/// painted (a hidden [IndexedStack] child, [Offstage], zero opacity) are never
-/// used. Tags are compared with `==` across the whole app, so use typed values
+/// `sourceContext`; the source the finger just went down on; the only copy on
+/// screen (or, with none on screen, the only painted one). When that is still
+/// ambiguous (several copies and no tap to tell them apart) it zooms in without
+/// a source instead of guessing. Sources that are not painted (a hidden
+/// [IndexedStack] child, [Offstage], zero opacity) are never used. Tags are compared with `==` across the whole app, so use typed values
 /// such as `('order', id)` when ids of different kinds could collide.
 ///
 /// Unlike a heroine, the source never builds the destination page: the route
@@ -82,31 +83,54 @@ class ZoomSource extends StatefulWidget {
     for (final source in painted) {
       if (source._downStamp == _pointerDowns && source._downStamp > 0) return source;
     }
+    // No tap to go by: only an unambiguous copy is used. Several copies of the
+    // tag on screen (or several off screen and none on it) could each be the
+    // one meant, so the page zooms in without a source rather than from a
+    // guessed one.
     final onScreen = [
       for (final source in painted)
         if (source._isOnScreen) source,
     ];
+    final candidates = onScreen.isNotEmpty ? onScreen : painted;
+    if (candidates.length == 1) return candidates.single;
     assert(() {
-      if (onScreen.length > 1 && _warnedTags.add(tag!)) {
+      if (_warnedTags.add(tag!)) {
         debugPrint(
-          'ZoomSource: ${onScreen.length} sources on screen share the tag $tag and none was just tapped; '
-          'zooming from the most recently built one. Pass `sourceContext` to ZoomPageRoute, '
-          'or give each source a distinct tag.',
+          'ZoomSource: ${candidates.length} sources share the tag $tag and none was just tapped; '
+          'zooming without a source. Pass `sourceContext` to ZoomPageRoute, or give each source a distinct tag.',
         );
       }
       return true;
     }());
-    return onScreen.isNotEmpty ? onScreen.first : painted.first;
+    return null;
   }
 
   @override
   State<ZoomSource> createState() => _ZoomSourceState();
 }
 
+/// A live source with [old]'s tag to take over from [old] once it is no longer
+/// in the tree (its list item or tab was rebuilt as a new widget while the
+/// page was open), so the close still zooms into the right place. Unlike
+/// [ZoomSource.find] the source's route may be covered (by the zoom page).
+ZoomSourceHandle? zoomSourceReplacement(Object tag, ZoomSourceHandle old) {
+  final sources = ZoomSource._registry[tag];
+  if (sources == null) return null;
+  for (final source in sources.reversed) {
+    if (!identical(source, old) && source.isAvailable && source._isPainted) return source;
+  }
+  return null;
+}
+
 /// What a [ZoomPageRoute] needs from its [ZoomSource].
 abstract class ZoomSourceHandle {
+  /// Whether the source is in the tree right now. It is not while its element
+  /// is inactive (being moved or replaced during a frame) or once disposed;
+  /// the other members then fall back to the last known values.
+  bool get isAvailable;
+
   /// The source's current rect in global coordinates (the last known one once
-  /// the source has been disposed).
+  /// the source is not available).
   Rect get globalRect;
 
   BorderRadius get borderRadius;
@@ -133,6 +157,27 @@ class _ZoomSourceState extends State<ZoomSource> with SingleTickerProviderStateM
   bool _tickerEnabled = true;
   Rect _lastRect = Rect.zero;
 
+  /// False while the element is inactive: mounted, but out of the tree for the
+  /// rest of the frame (moved by a GlobalKey, or about to be disposed). Its
+  /// render object and ancestors must not be looked up then.
+  bool _active = true;
+  Widget? _lastOrigin;
+
+  @override
+  bool get isAvailable => mounted && _active;
+
+  @override
+  void deactivate() {
+    _active = false;
+    super.deactivate();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _active = true;
+  }
+
   /// 1 → 0 while a revealed source sharpens (see [reveal]).
   late final AnimationController _unblur = AnimationController(
     vsync: this,
@@ -147,6 +192,7 @@ class _ZoomSourceState extends State<ZoomSource> with SingleTickerProviderStateM
   /// Whether every ancestor actually paints this source, i.e. it is not in a
   /// hidden [IndexedStack] child, under [Offstage] or at zero opacity.
   bool get _isPainted {
+    if (!isAvailable) return false;
     final box = context.findRenderObject();
     if (box == null) return false;
     RenderObject child = box;
@@ -175,7 +221,7 @@ class _ZoomSourceState extends State<ZoomSource> with SingleTickerProviderStateM
   }
 
   bool get _canBeOrigin {
-    if (!mounted || !_tickerEnabled) return false;
+    if (!isAvailable || !_tickerEnabled) return false;
     final box = context.findRenderObject();
     if (box is! RenderBox || !box.attached || !box.hasSize || box.size.isEmpty) return false;
     return ModalRoute.of(context)?.isCurrent ?? true;
@@ -222,7 +268,7 @@ class _ZoomSourceState extends State<ZoomSource> with SingleTickerProviderStateM
 
   @override
   Rect get globalRect {
-    final box = mounted ? context.findRenderObject() : null;
+    final box = isAvailable ? context.findRenderObject() : null;
     if (box is RenderBox && box.attached && _laidOutUpToRoot(box)) {
       _lastRect = box.localToGlobal(Offset.zero) & box.size;
     }
@@ -247,7 +293,9 @@ class _ZoomSourceState extends State<ZoomSource> with SingleTickerProviderStateM
 
   @override
   Widget buildOrigin(BuildContext navigatorContext) {
-    return InheritedTheme.capture(from: context, to: navigatorContext).wrap(
+    // Ancestors can't be looked up from an inactive element: reuse the last copy.
+    if (!isAvailable) return _lastOrigin ?? ExcludeSemantics(child: IgnorePointer(child: widget.child));
+    return _lastOrigin = InheritedTheme.capture(from: context, to: navigatorContext).wrap(
       // A visual copy only: no hits, and no duplicate semantics ids during the flight.
       ExcludeSemantics(child: IgnorePointer(child: widget.child)),
     );

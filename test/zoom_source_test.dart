@@ -141,7 +141,7 @@ void main() {
     expect(opacityOf(tester, b), 1);
   });
 
-  testWidgets('an older tap does not stick: a later push from elsewhere uses the newest on-screen copy', (
+  testWidgets('an older tap does not stick, and with two copies on screen and no tap the page zooms without a source', (
     tester,
   ) async {
     await pumpHome(
@@ -163,8 +163,10 @@ void main() {
 
     await tester.tap(find.text('go'));
     await tester.pumpAndSettle();
+    // Ambiguous: neither copy is used (both stay visible) and the page opens.
     expect(opacityOf(tester, a), 1);
-    expect(opacityOf(tester, b), 0);
+    expect(opacityOf(tester, b), 1);
+    expect(find.text('page'), findsOneWidget);
   });
 
   testWidgets('a toolbar source is not blown up into the page: the page fades in instead', (tester) async {
@@ -206,5 +208,28 @@ void main() {
       tester.widgetList<Opacity>(find.ancestor(of: find.text('page'), matching: find.byType(Opacity))).first.opacity,
       1,
     );
+  });
+
+  testWidgets('two painted copies, both off screen, and no tap: no source', (tester) async {
+    await pumpHome(
+      tester,
+      Stack(
+        children: [
+          card(a, offset: const Offset(-5000, 0)),
+          card(b, offset: const Offset(0, 5000)),
+          Positioned(
+            bottom: 0,
+            child: Builder(
+              builder: (context) => TextButton(onPressed: () => push(context), child: const Text('go')),
+            ),
+          ),
+        ],
+      ),
+    );
+    await tester.tap(find.text('go'));
+    await tester.pumpAndSettle();
+    expect(opacityOf(tester, a), 1);
+    expect(opacityOf(tester, b), 1);
+    expect(find.text('page'), findsOneWidget);
   });
 }
