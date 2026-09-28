@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
@@ -119,13 +121,24 @@ abstract class ZoomSourceHandle {
   void hide();
 
   void show();
+
+  /// Shows the source the way a toolbar button comes back natively when the
+  /// page closes into it: at once, but blurred, sharpening over ≈100 ms.
+  void reveal();
 }
 
-class _ZoomSourceState extends State<ZoomSource> implements ZoomSourceHandle {
+class _ZoomSourceState extends State<ZoomSource> with SingleTickerProviderStateMixin implements ZoomSourceHandle {
   Object? _registeredTag;
   bool _hidden = false;
   bool _tickerEnabled = true;
   Rect _lastRect = Rect.zero;
+
+  /// 1 → 0 while a revealed source sharpens (see [reveal]).
+  late final AnimationController _unblur = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 100),
+    value: 0,
+  );
 
   /// The value [ZoomSource._pointerDowns] reaches with the latest pointer-down
   /// that hit this source; equal to it while that is the latest one app-wide.
@@ -202,6 +215,7 @@ class _ZoomSourceState extends State<ZoomSource> implements ZoomSourceHandle {
 
   @override
   void dispose() {
+    _unblur.dispose();
     _unregister();
     super.dispose();
   }
@@ -245,6 +259,14 @@ class _ZoomSourceState extends State<ZoomSource> implements ZoomSourceHandle {
   @override
   void show() => _setHidden(false);
 
+  @override
+  void reveal() {
+    if (!mounted || !_hidden) return;
+    _unblur.value = 1;
+    _setHidden(false);
+    _unblur.animateTo(0, curve: Curves.easeOut);
+  }
+
   void _setHidden(bool hidden) {
     if (!mounted || _hidden == hidden) return;
     // show() runs from the route's dispose, i.e. while the tree is being
@@ -262,7 +284,23 @@ class _ZoomSourceState extends State<ZoomSource> implements ZoomSourceHandle {
     return Listener(
       // Runs before the global pointer route counts this pointer-down.
       onPointerDown: (_) => _downStamp = ZoomSource._pointerDowns + 1,
-      child: Opacity(opacity: _hidden ? 0 : 1, child: widget.child),
+      child: Opacity(
+        opacity: _hidden ? 0 : 1,
+        // Always in the tree (only enabled while sharpening) so the child is
+        // never remounted.
+        child: AnimatedBuilder(
+          animation: _unblur,
+          builder: (context, child) {
+            final sigma = 6 * _unblur.value;
+            return ImageFiltered(
+              enabled: sigma > 0,
+              imageFilter: ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
+              child: child,
+            );
+          },
+          child: widget.child,
+        ),
+      ),
     );
   }
 }

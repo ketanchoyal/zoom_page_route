@@ -56,9 +56,13 @@ abstract final class ZoomNative {
   static const double toolbarGlassOpacity = 0.72;
 
   /// Closing into a toolbar source there is no source copy over the page, so
-  /// the button itself comes back once the page is this close to gone
-  /// (natively ≈120 ms after the page disappears, not when the spring settles).
-  static const double toolbarRevealProgress = 0.03;
+  /// the button itself comes back (blurred, then sharpening) at this progress,
+  /// as the page vanishes, as natively, rather than when the spring settles.
+  static const double toolbarRevealProgress = 0.1;
+
+  /// The page and glass finish fading over this much progress before the
+  /// reveal, so no shrunken copy of the page is left on the button.
+  static const double toolbarVanishLength = 0.12;
 
   /// No source: grows out of a centred rect this fraction of the screen width
   /// wide, height / width = aspect, and fades (from startOpacity to 1 by

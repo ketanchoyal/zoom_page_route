@@ -233,6 +233,12 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
     _route.animation?.addListener(_onAnimationTick);
   }
 
+  /// 1 → 0 over the last stretch before [ZoomNative.toolbarRevealProgress], so
+  /// the page and glass are gone (no miniature of the page) by the time the
+  /// button comes back.
+  static double _toolbarGone(double progress) =>
+      ((progress - ZoomNative.toolbarRevealProgress) / ZoomNative.toolbarVanishLength).clamp(0.0, 1.0);
+
   /// A toolbar source has no copy drawn over the closing page, so waiting for
   /// the spring to settle leaves a gap with neither page nor button (≈0.4 s).
   /// Natively the button is back ≈120 ms after the page fades out.
@@ -241,7 +247,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
     final source = _route._source;
     if (animation == null || source == null || !source.isToolbarItem) return;
     if (animation.status == AnimationStatus.reverse && animation.value <= ZoomNative.toolbarRevealProgress) {
-      source.show();
+      source.reveal();
     }
   }
 
@@ -441,7 +447,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                         .clamp(0.0, 1.0);
             } else {
               pageOpacity = closing
-                  ? math.pow(progress, ZoomNative.toolbarFadeOutPower).toDouble()
+                  ? math.pow(progress, ZoomNative.toolbarFadeOutPower).toDouble() * _toolbarGone(progress)
                   : (progress / ZoomNative.toolbarFadeInEnd).clamp(0.0, 1.0);
             }
 
@@ -486,7 +492,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                           alpha: !toolbar || settled || _dragAxis != null
                               ? 0
                               : closing
-                              ? math.min(ZoomNative.toolbarGlassOpacity, progress)
+                              ? math.min(ZoomNative.toolbarGlassOpacity, progress) * _toolbarGone(progress)
                               : ZoomNative.toolbarGlassOpacity,
                         ),
                       ),
