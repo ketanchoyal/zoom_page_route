@@ -26,7 +26,11 @@ void main() {
 
   void push(BuildContext context, {BuildContext? sourceContext}) {
     Navigator.of(context).push(
-      ZoomPageRoute<void>(tag: 'dup', sourceContext: sourceContext, builder: (_) => const Scaffold(body: Text('page'))),
+      ZoomPageRoute<void>(
+        tag: 'dup',
+        sourceContext: sourceContext,
+        builder: (_) => const Scaffold(body: Text('page')),
+      ),
     );
   }
 
@@ -49,8 +53,11 @@ void main() {
     );
   }
 
-  Future<void> pumpHome(WidgetTester tester, Widget body) =>
-      tester.pumpWidget(MaterialApp(home: Scaffold(body: SafeArea(child: body))));
+  Future<void> pumpHome(WidgetTester tester, Widget body) => tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(body: SafeArea(child: body)),
+    ),
+  );
 
   testWidgets('zooms from the copy that was tapped, not the newest one', (tester) async {
     await pumpHome(tester, Column(children: [card(a), card(b)]));
@@ -98,7 +105,9 @@ void main() {
           card(b, offset: const Offset(-5000, 0)),
           Positioned(
             bottom: 0,
-            child: Builder(builder: (context) => TextButton(onPressed: () => push(context), child: const Text('go'))),
+            child: Builder(
+              builder: (context) => TextButton(onPressed: () => push(context), child: const Text('go')),
+            ),
           ),
         ],
       ),
@@ -118,8 +127,10 @@ void main() {
           card(a, onBuild: (context) => contextA = context),
           card(b),
           Builder(
-            builder: (context) =>
-                TextButton(onPressed: () => push(context, sourceContext: contextA), child: const Text('go')),
+            builder: (context) => TextButton(
+              onPressed: () => push(context, sourceContext: contextA),
+              child: const Text('go'),
+            ),
           ),
         ],
       ),
@@ -130,14 +141,18 @@ void main() {
     expect(opacityOf(tester, b), 1);
   });
 
-  testWidgets('an older tap does not stick: a later push from elsewhere uses the newest on-screen copy', (tester) async {
+  testWidgets('an older tap does not stick: a later push from elsewhere uses the newest on-screen copy', (
+    tester,
+  ) async {
     await pumpHome(
       tester,
       Column(
         children: [
           card(a),
           card(b),
-          Builder(builder: (context) => TextButton(onPressed: () => push(context), child: const Text('go'))),
+          Builder(
+            builder: (context) => TextButton(onPressed: () => push(context), child: const Text('go')),
+          ),
         ],
       ),
     );
@@ -150,5 +165,46 @@ void main() {
     await tester.pumpAndSettle();
     expect(opacityOf(tester, a), 1);
     expect(opacityOf(tester, b), 0);
+  });
+
+  testWidgets('a toolbar source is not blown up into the page: the page fades in instead', (tester) async {
+    await pumpHome(
+      tester,
+      Builder(
+        builder: (context) => ZoomSource(
+          key: a,
+          tag: 'bar',
+          toolbar: true,
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              ZoomPageRoute<void>(
+                tag: 'bar',
+                builder: (_) => const Scaffold(body: Text('page')),
+              ),
+            ),
+            child: const SizedBox(width: 24, height: 24, child: ColoredBox(color: Color(0xFFFF0000))),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(a));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 30));
+    // The page's own Opacity (nearest Opacity above the page content) is part-way.
+    final pageOpacity = tester
+        .widgetList<Opacity>(find.ancestor(of: find.text('page'), matching: find.byType(Opacity)))
+        .first
+        .opacity;
+    expect(pageOpacity, inExclusiveRange(0, 1));
+    // No copy of the source is drawn over the page.
+    final copies = find.descendant(of: find.byType(IgnorePointer), matching: find.byType(ExcludeSemantics));
+    for (final copy in tester.widgetList(find.ancestor(of: copies, matching: find.byType(Opacity)))) {
+      expect((copy as Opacity).opacity, 0);
+    }
+    await tester.pumpAndSettle();
+    expect(
+      tester.widgetList<Opacity>(find.ancestor(of: find.text('page'), matching: find.byType(Opacity))).first.opacity,
+      1,
+    );
   });
 }

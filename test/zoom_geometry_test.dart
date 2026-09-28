@@ -28,6 +28,15 @@ void main() {
       expect(atTop410.rect.center.dx, closeTo(201, 1));
     });
 
+    // Native, finger from 12% to the very bottom: the page top stops near 0.65
+    // and it stays a card (≈0.53 wide, ≈0.25 tall), not a sliver.
+    test('a full-length drag rubber-bands instead of collapsing the page', () {
+      final frame = geometry.verticalDrag(const Offset(0, 874 * 0.87), anchor: const Offset(201, 874 * 0.12));
+      expect(frame.rect.top / 874, closeTo(0.65, 0.04));
+      expect(frame.rect.width / 402, closeTo(0.53, 0.04));
+      expect(frame.rect.height / 874, greaterThan(0.2));
+    });
+
     test('corner radius shrinks with the width, as natively (≈44 at 288 wide)', () {
       expect(atTop410.radius, closeTo(44, 1.5));
     });

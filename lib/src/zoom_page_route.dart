@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -6,6 +8,7 @@ import 'package:flutter/physics.dart';
 
 import 'zoom_geometry.dart';
 import 'zoom_source.dart';
+import 'zoom_native.dart';
 import 'zoom_transition_spec.dart';
 
 /// iOS "zoom" navigation: the page grows out of the [ZoomSource] with the same
@@ -128,7 +131,7 @@ class ZoomPageRoute<T> extends PageRoute<T> {
           // tree stays the same at rest (only the clip is switched off) so the
           // route below is never remounted.
           return Transform.scale(
-            scale: 1 - (1 - spec.backgroundScale) * t,
+            scale: 1 - (1 - ZoomNative.backgroundScale) * t,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(screenCornerRadius),
               clipBehavior: t == 0 ? Clip.none : Clip.antiAlias,
@@ -227,6 +230,19 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
     super.initState();
     _route._source?.hide();
     _route.animation?.addStatusListener(_onAnimationStatus);
+    _route.animation?.addListener(_onAnimationTick);
+  }
+
+  /// A toolbar source has no copy drawn over the closing page, so waiting for
+  /// the spring to settle leaves a gap with neither page nor button (≈0.4 s).
+  /// Natively the button is back ≈120 ms after the page fades out.
+  void _onAnimationTick() {
+    final animation = _route.animation;
+    final source = _route._source;
+    if (animation == null || source == null || !source.isToolbarItem) return;
+    if (animation.status == AnimationStatus.reverse && animation.value <= ZoomNative.toolbarRevealProgress) {
+      source.show();
+    }
   }
 
   /// Shows the source again on the frame the page reaches it, the same frame
@@ -240,6 +256,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
   @override
   void dispose() {
     _route.animation?.removeStatusListener(_onAnimationStatus);
+    _route.animation?.removeListener(_onAnimationTick);
     _route._source?.show();
     _cancelController.dispose();
     super.dispose();
@@ -268,18 +285,20 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
     spec: _spec,
     screen: screen,
     source: _sourceRect(screen),
-    sourceRadius: _route._source?.borderRadius.topLeft.x ?? _route.screenCornerRadius,
+    sourceRadius: _route._source?.borderRadius.topLeft.x ?? _route.screenCornerRadius * ZoomNative.sourcelessWidth,
     screenRadius: _route.screenCornerRadius,
   );
 
   Rect _sourceRect(Size screen) {
     final source = _route._source;
     if (source == null) {
-      // No source (deep link, a push from code): grow from slightly smaller.
+      // No source (deep link, a push from code): natively the page grows out
+      // of a small centred rect (and fades, see pageOpacity).
+      final width = screen.width * ZoomNative.sourcelessWidth;
       return Rect.fromCenter(
         center: screen.center(Offset.zero),
-        width: screen.width * 0.94,
-        height: screen.height * 0.94,
+        width: width,
+        height: width * ZoomNative.sourcelessAspect,
       );
     }
     final navigatorBox = _route.navigator?.context.findRenderObject();
@@ -394,6 +413,36 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
             final pageClip = Rect.fromLTWH(0, 0, screen.width, scale == 0 ? screen.height : rect.height / scale);
             final originSize = _route._source?.globalRect.size ?? Size.zero;
             final settled = animation.isCompleted && _dragAxis == null && _releaseFrame == null;
+            // Natively a toolbar item is not blown up into the page (a 24 pt
+            // icon scaled to cover the page is a huge blurry glyph): its copy
+            // is not drawn and the page itself fades in as it grows instead.
+            final toolbar = _route._source?.isToolbarItem ?? false;
+            final progress = animation.value.clamp(0.0, 1.0);
+            final closing = animation.status == AnimationStatus.reverse || _releaseFrame != null;
+            // With no source (a push from code) the page grows out of a small
+            // centred rect and fades, as natively.
+            final sourceless = _route._source == null;
+            final double pageOpacity;
+            if (settled || _dragAxis != null) {
+              pageOpacity = 1.0;
+            } else if (!toolbar && !sourceless) {
+              // Content source: opaque while opening; closing, natively the page
+              // fades part-way under the returning source copy.
+              pageOpacity = closing
+                  ? ZoomNative.contentCloseEndOpacity +
+                        (1 - ZoomNative.contentCloseEndOpacity) * math.pow(progress, ZoomNative.contentCloseFadePower)
+                  : 1.0;
+            } else if (sourceless) {
+              pageOpacity = closing
+                  ? math.pow(progress, ZoomNative.sourcelessFadeOutPower).toDouble()
+                  : (ZoomNative.sourcelessStartOpacity +
+                            (1 - ZoomNative.sourcelessStartOpacity) * progress / ZoomNative.sourcelessFadeInEnd)
+                        .clamp(0.0, 1.0);
+            } else {
+              pageOpacity = closing
+                  ? math.pow(progress, ZoomNative.toolbarFadeOutPower).toDouble()
+                  : (progress / ZoomNative.toolbarFadeInEnd).clamp(0.0, 1.0);
+            }
 
             // Same widget shape every frame: adding or removing Opacity/clip
             // layers mid-transition makes the page blink.
@@ -411,10 +460,34 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                         borderRadius: BorderRadius.circular(frame.radius),
                         boxShadow: [
                           BoxShadow(
-                            color: Color.fromRGBO(0, 0, 0, settled ? 0 : _spec.shadowOpacity),
-                            blurRadius: _spec.shadowBlur,
+                            // Faded with a toolbar page: the blurred shadow also lies
+                            // under the page and would show through it as a dark blob.
+                            color: Color.fromRGBO(0, 0, 0, settled ? 0 : ZoomNative.shadowOpacity * pageOpacity),
+                            blurRadius: ZoomNative.shadowBlur,
                           ),
                         ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Toolbar sources: the button's glass, grown into the page's shape,
+                // under the fading page.
+                Positioned.fromRect(
+                  rect: rect,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(frame.radius),
+                        // Under the page, so what shows of it is glass · (1 − page
+                        // alpha). Natively it holds while opening and fades with
+                        // the page's size while closing (≈ progress).
+                        color: _spec.toolbarGlassColor.withValues(
+                          alpha: !toolbar || settled || _dragAxis != null
+                              ? 0
+                              : closing
+                              ? math.min(ZoomNative.toolbarGlassOpacity, progress)
+                              : ZoomNative.toolbarGlassOpacity,
+                        ),
                       ),
                     ),
                   ),
@@ -426,10 +499,13 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                   height: screen.height,
                   child: Transform(
                     transform: Matrix4.translationValues(rect.left, rect.top, 0)..scaleByDouble(scale, scale, 1, 1),
-                    child: ClipRRect(
-                      clipper: _RRectClipper(pageClip, settled || scale == 0 ? 0 : frame.radius / scale),
-                      clipBehavior: Clip.antiAlias,
-                      child: page,
+                    child: Opacity(
+                      opacity: pageOpacity,
+                      child: ClipRRect(
+                        clipper: _RRectClipper(pageClip, settled || scale == 0 ? 0 : frame.radius / scale),
+                        clipBehavior: Clip.antiAlias,
+                        child: page,
+                      ),
                     ),
                   ),
                 ),
@@ -439,7 +515,13 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                   rect: rect,
                   child: IgnorePointer(
                     child: Opacity(
-                      opacity: origin == null || settled ? 0 : frame.originOpacity,
+                      opacity: origin == null || settled || toolbar
+                          ? 0
+                          // Natively the source reappears early while closing:
+                          // ≈60% at 64% of the way, opaque from 40% down.
+                          : closing && _dragAxis == null
+                          ? ((1 - progress) / ZoomNative.closeCrossfadeLength).clamp(0.0, 1.0)
+                          : frame.originOpacity,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(frame.radius),
                         // Laid out at the source's own size (a bare FittedBox would give
@@ -447,7 +529,10 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                         child: origin == null
                             ? const SizedBox.shrink()
                             : FittedBox(
-                                fit: BoxFit.cover,
+                                // Width-fitted and pinned to the top, as natively: the
+                                // source keeps its proportions at the top of the page
+                                // (cover would blow a card's text up and crop it).
+                                fit: BoxFit.fitWidth,
                                 alignment: Alignment.topCenter,
                                 child: SizedBox.fromSize(size: originSize, child: origin),
                               ),

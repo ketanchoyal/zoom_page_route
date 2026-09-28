@@ -96,16 +96,19 @@ class HomeScreen extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         actions: [
           Builder(
-            builder: (context) => IconButton(
-              onPressed: () => _push(context, 'cart', (_) => const CartScreen()),
-              icon: ZoomSource(
-                tag: 'cart',
-                toolbar: true,
-                borderRadius: BorderRadius.circular(20),
-                child: Badge(
-                  label: const Text('4'),
+            // The whole button is the source, as natively (the toolbar item, not
+            // just its glyph): the page grows from the button and the badge
+            // hides with it.
+            builder: (context) => ZoomSource(
+              tag: 'cart',
+              toolbar: true,
+              borderRadius: BorderRadius.circular(24),
+              child: IconButton(
+                onPressed: () => _push(context, 'cart', (_) => const CartScreen()),
+                icon: const Badge(
+                  label: Text('4'),
                   backgroundColor: accentRed,
-                  child: const Icon(CupertinoIcons.bag_fill, color: accentRed),
+                  child: Icon(CupertinoIcons.bag_fill, color: accentRed),
                 ),
               ),
             ),

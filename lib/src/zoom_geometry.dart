@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'zoom_native.dart';
 import 'zoom_transition_spec.dart';
 
 /// Where the page is drawn for one frame, and how the rest of the screen looks.
@@ -44,7 +45,7 @@ class ZoomGeometry {
 
   Rect get _full => Offset.zero & screen;
 
-  double _crossfade(double progress) => 1 - (progress / spec.crossfadeEnd).clamp(0.0, 1.0);
+  double _crossfade(double progress) => 1 - (progress / ZoomNative.crossfadeEnd).clamp(0.0, 1.0);
 
   /// The rect [t] of the way from [a] to [b], interpolated the way iOS does it:
   /// width, centre and aspect ratio (height / width) are lerped, so the height
@@ -63,7 +64,7 @@ class ZoomGeometry {
     return ZoomFrame(
       rect: _morph(source, _full, progress),
       radius: lerpDouble(sourceRadius, screenRadius, progress.clamp(0.0, 1.0))!,
-      dim: spec.maxDim * progress.clamp(0.0, 1.0),
+      dim: ZoomNative.maxDim * progress.clamp(0.0, 1.0),
       originOpacity: _crossfade(progress),
     );
   }
@@ -85,8 +86,12 @@ class ZoomGeometry {
   /// simply follows the finger.
   ZoomFrame verticalDrag(Offset drag, {Offset? anchor}) {
     final grab = anchor ?? Offset(screen.width / 2, 0);
-    final dy = (math.max(0.0, drag.dy) / screen.height).clamp(0.0, spec.maxVerticalDrag) * screen.height;
-    final baseScale = 1 - spec.verticalDragScaleSlope * dy / screen.height;
+    // Natively the page follows the finger less and less (rubber band), so a
+    // drag to the bottom of the screen leaves a card, not a sliver.
+    final raw = math.max(0.0, drag.dy) / screen.height;
+    final damped = ZoomNative.verticalDragRubberBand * _tanh(raw / ZoomNative.verticalDragRubberBand);
+    final dy = damped.clamp(0.0, ZoomNative.maxVerticalDrag) * screen.height;
+    final baseScale = 1 - ZoomNative.verticalDragScaleSlope * dy / screen.height;
     final portrait = screen.height > screen.width;
     // The portrait lift depends on where the top ends up, which depends on the
     // scale; a few fixed-point steps converge (the lift is a small cubic).
@@ -97,7 +102,7 @@ class ZoomGeometry {
       scale = baseScale * lift;
       top = grab.dy + dy - grab.dy * scale;
       final u = (top / screen.height).clamp(0.0, 1.0);
-      lift = portrait ? 1 - spec.portraitDragLift * u * u * u : 1.0;
+      lift = portrait ? 1 - ZoomNative.portraitDragLift * u * u * u : 1.0;
     }
     final width = screen.width * scale;
     final left = grab.dx + drag.dx - grab.dx * scale;
@@ -106,7 +111,7 @@ class ZoomGeometry {
     return ZoomFrame(
       rect: Rect.fromLTRB(left, top, left + width, math.max(top, bottom)),
       radius: screenRadius * scale,
-      dim: math.max(spec.minDragDim, spec.maxDim - spec.verticalDragDimSlope * u),
+      dim: math.max(ZoomNative.minDragDim, ZoomNative.maxDim - ZoomNative.verticalDragDimSlope * u),
       originOpacity: 0,
     );
   }
@@ -115,15 +120,20 @@ class ZoomGeometry {
   /// [drag] (points). [anchor] defaults to the left edge's centre.
   ZoomFrame edgeDrag(Offset drag, {Offset? anchor}) {
     final grab = anchor ?? Offset(0, screen.height / 2);
-    final u = (math.max(0.0, drag.dx) / screen.width).clamp(0.0, spec.maxEdgeDrag);
-    final scale = 1 - spec.edgeDragScaleSlope * u;
+    final u = (math.max(0.0, drag.dx) / screen.width).clamp(0.0, ZoomNative.maxEdgeDrag);
+    final scale = 1 - ZoomNative.edgeDragScaleSlope * u;
     final left = grab.dx + u * screen.width - grab.dx * scale;
     final top = grab.dy + drag.dy - grab.dy * scale;
     return ZoomFrame(
       rect: Rect.fromLTWH(left, top, screen.width * scale, screen.height * scale),
       radius: screenRadius * scale,
-      dim: math.max(spec.minDragDim, spec.maxDim - spec.edgeDragDimSlope * u),
+      dim: math.max(ZoomNative.minDragDim, ZoomNative.maxDim - ZoomNative.edgeDragDimSlope * u),
       originOpacity: 0,
     );
+  }
+
+  static double _tanh(double x) {
+    final e = math.exp(2 * x);
+    return (e - 1) / (e + 1);
   }
 }

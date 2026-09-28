@@ -30,8 +30,10 @@ Navigator.of(context).push(ZoomPageRoute(tag: order.id, builder: (_) => OrderScr
 ```
 
 Push with the same `tag` as a `ZoomSource` on the current route. With no
-matching source (deep links, pushes from code), the page grows from a slightly
-smaller centred frame.
+matching source (deep links, pushes from code) it does what SwiftUI does: the
+page grows out of a small centred rect (35% of the width, 1 : 1.31) while
+fading in from 35%, and on close shrinks back into it while fading out
+completely.
 
 - Tags may repeat (the same item in two lists, a copy in a hidden tab). The
   route zooms from, in order: the source given as `sourceContext` (any
@@ -42,11 +44,24 @@ smaller centred frame.
   Tags compare with `==` app-wide, so use typed tags like `('order', id)`
   when ids of different kinds could collide.
 - Mark app-bar / toolbar sources with `ZoomSource(toolbar: true)`: iOS zooms
-  out of toolbar items with a quicker spring than out of content. A 36×36
+  out of toolbar items with a quicker spring than out of content, and it does
+  not blow the icon up into the page: the button's white glass grows into the
+  page's shape (≈72%) and the page fades in on top (opaque at 80% of the
+  way; on close alpha ≈ progress^1.3 and the glass fades with it). Measured
+  with a magenta page over a pure green background, so page, glass and
+  background shares can be solved per pixel; Flutter matches native within
+  ~0.03 at the same page size. Make the whole toolbar button the source (not
+  just its glyph), as natively. When closing, the button is shown again as
+  soon as the page is gone (≈100 ms, native ≈120 ms), not when the spring
+  finally settles. A 36×36
   in-content source zooms at the normal pace, so size is not the cause.
 - `ZoomDismissBuilder` rebuilds with the drag-to-dismiss progress (0–1), e.g.
   to fade a back button while the page is dragged.
-- `ZoomTransitionSpec` holds every tunable; pass one as `spec:` to override.
+- `ZoomTransitionSpec` (const) holds the choices an app makes: the four
+  springs, `recedeRouteBelow`, `backgroundFillColor`, `toolbarGlassColor`,
+  `edgeWidth` and the dismiss thresholds. Pass one as `spec:` to override.
+  How iOS itself animates (drag geometry, fades, dim, shadow) is measured and
+  fixed (see below), not configurable.
 - Pages with a vertical list: drag-down dismiss only starts when the page's
   main vertical scrollable is at the top when the finger goes down. Otherwise
   the list scrolls, and reaching the top mid-gesture does not switch to a
@@ -93,7 +108,7 @@ Measured from screen recordings of the native reference app (iOS 27 simulator,
 on-screen rect, corner radius and the background dim can be tracked frame by
 frame (`native_reference/`, see below).
 
-| | Native measurement | Default in `ZoomTransitionSpec` |
+| | Native measurement | Flutter (fixed unless noted) |
 |---|---|---|
 | Open spring | ζ ≈ 0.975–0.98, response ≈ 0.37–0.38 s (2 runs, RMS < 0.004) | mass 1, stiffness 281, damping 32.8 |
 | Close spring | ζ ≈ 0.98, response ≈ 0.33 s (6 usable frames) | mass 1, stiffness 365, damping 37.5 |
@@ -101,7 +116,8 @@ frame (`native_reference/`, see below).
 | Background dim | black α ≈ 0.33 × progress | `maxDim` 0.33 |
 | Previous page | content shrinks about the screen centre to ≈0.915 as the page opens, holds it while dragging, grows back on close; uncovered area shows the page background. Natively the navigation bar stays full size, so no corners show | off by default (`recedeRouteBelow`); when on, the whole route shrinks (`backgroundScale` 0.915, via `delegatedTransition`), clipped to the display corner radius so a coloured app bar's corners stay inside the screen shape; `backgroundFillColor` (theme scaffold background) |
 | Page shadow | soft and centred: ~15% darker 6 pt out, ~8% at 20 pt | `shadowOpacity` 0.18, `shadowBlur` 40 |
-| Source ↔ page cross-fade | source hidden by ~45% progress | `crossfadeEnd` 0.45 |
+| Source ↔ page cross-fade | opening: source hidden by ~45% progress; closing: source back early (≈60% at 64% of the way, opaque from 40%) while the page fades to ≈60%; the source keeps its proportions, width-fitted at the top of the page | `crossfadeEnd` 0.45, `closeCrossfadeLength` 0.6, `contentCloseEndOpacity` 0.6 |
+| Long drag down | rubber-bands: page top stops near 0.65 of the screen (card, not a sliver) | `verticalDragRubberBand` 0.7 |
 | Page shape | width, centre and aspect ratio (h/w) lerp with progress, so the height lags: 45% of the way at 57% width (iPhone), 38% at 50% (iPad) | same (`ZoomGeometry`) |
 | Corner radius (open) | source radius → screen radius with progress | lerp(source, screen, progress) |
 | Drag down | the page scales uniformly about the point the finger grabbed, which stays under the finger: scale = (1 − 0.662·dy/height)·b; the bottom edge stays on the screen bottom in landscape and rises to b·height in portrait, b = 1 − 0.453·u³ (u = page top / height); radius ∝ width. Same numbers on iPhone and iPad | `verticalDragScaleSlope` 0.662, `portraitDragLift` 0.453 |
