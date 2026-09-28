@@ -127,15 +127,23 @@ class HomeScreen extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: GestureDetector(
                 onTap: () => _push(context, 'measure', (_) => const MeasureScreen()),
+                // The card and its label together are the zoom source.
                 child: ZoomSource(
                   tag: 'measure',
                   borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: 150,
-                    height: 100,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(color: const Color(0xFF00FFFF), borderRadius: BorderRadius.circular(12)),
-                    child: const Text('MEASURE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 150,
+                        height: 100,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(color: const Color(0xFF00FFFF), borderRadius: BorderRadius.circular(12)),
+                        child: const Text('MEASURE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text('Solid magenta page', style: TextStyle(fontSize: 13, color: Colors.black54)),
+                    ],
                   ),
                 ),
               ),
@@ -562,13 +570,35 @@ class MeasureScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
+    // A plain scrolling list over the magenta page, to compare how dismiss
+    // gestures and scrolling interact (same layout as the SwiftUI demo).
+    return Material(
       color: const Color(0xFFFF00FF),
-      child: Center(
-        child: FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+      child: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Close'),
+                ),
+              ),
+            ),
+            for (var row = 1; row <= 30; row++)
+              Container(
+                height: 56,
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                child: Text('Row $row', style: const TextStyle(fontSize: 17)),
+              ),
+          ],
         ),
       ),
     );

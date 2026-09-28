@@ -127,15 +127,27 @@ struct OrderTrackingView: View {
 struct MeasureView: View {
     @Environment(\.dismiss) private var dismiss
 
+    /// A plain scrolling list over the magenta page, to compare how dismiss
+    /// gestures and scrolling interact (same layout as the Flutter example).
     var body: some View {
-        Color(red: 1, green: 0, blue: 1)
-            .ignoresSafeArea()
-            .overlay {
+        ScrollView {
+            VStack(spacing: 8) {
                 Button("Close") { dismiss() }
                     .buttonStyle(.borderedProminent)
                     .tint(.black)
+                    .padding(.vertical, 8)
+                ForEach(1...30, id: \.self) { row in
+                    Text("Row \(row)")
+                        .font(.system(size: 17))
+                        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 12))
+                }
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .padding(16)
+        }
+        .background(Color(red: 1, green: 0, blue: 1).ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
     }
 }
 

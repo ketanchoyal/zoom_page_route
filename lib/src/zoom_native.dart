@@ -43,6 +43,11 @@ abstract final class ZoomNative {
   static const double contentCloseEndOpacity = 0.6;
   static const double contentCloseFadePower = 0.5;
 
+  /// …and over the last contentCloseFadeOutEnd of the way it fades out
+  /// completely, so where the source copy is transparent (a label with no
+  /// background) the page is not left showing through at the end.
+  static const double contentCloseFadeOutEnd = 0.25;
+
   /// Toolbar sources: the button's glass grows into the page's shape and the
   /// page fades in on top (alpha = progress / fadeInEnd), and out while
   /// closing (alpha = progress ^ fadeOutPower, glass = min(opacity, progress)).

@@ -81,10 +81,16 @@ struct HomeView: View {
         Button {
             path.append(.measure)
         } label: {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(red: 0, green: 1, blue: 1))
-                .frame(width: 150, height: 100)
-                .overlay { Text("MEASURE").font(.caption.bold()) }
+            // The card and its label together are the zoom source.
+            VStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(red: 0, green: 1, blue: 1))
+                    .frame(width: 150, height: 100)
+                    .overlay { Text("MEASURE").font(.caption.bold()) }
+                Text("Solid magenta page")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
         }
         .buttonStyle(.plain)
         .matchedTransitionSource(id: Route.measure.zoomID, in: zoom) { source in

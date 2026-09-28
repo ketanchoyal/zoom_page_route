@@ -429,8 +429,9 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
               // Content source: opaque while opening; closing, natively the page
               // fades part-way under the returning source copy.
               pageOpacity = closing
-                  ? ZoomNative.contentCloseEndOpacity +
-                        (1 - ZoomNative.contentCloseEndOpacity) * math.pow(progress, ZoomNative.contentCloseFadePower)
+                  ? (ZoomNative.contentCloseEndOpacity +
+                            (1 - ZoomNative.contentCloseEndOpacity) * math.pow(progress, ZoomNative.contentCloseFadePower)) *
+                        (progress / ZoomNative.contentCloseFadeOutEnd).clamp(0.0, 1.0)
                   : 1.0;
             } else if (sourceless) {
               pageOpacity = closing
