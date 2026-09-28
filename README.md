@@ -125,6 +125,12 @@ frame (`native_reference/`, see below).
 | Left-edge swipe (u = dx / width) | uniform scale 1 − 0.65u about the point the finger grabbed (a swipe started at 80% height stays anchored there) | `edgeDragScaleSlope` 0.65 |
 | Edge dim | ≈ 0.33 − 1.0u, floor 0.15 | `edgeDragDimSlope` 1.0 |
 
+`test/native_parity_test.dart` runs the real route frame by frame and checks
+the page / glass / source-copy opacities against these native samples (toolbar,
+no-source and content closes); `test/zoom_geometry_test.dart` pins the drag
+geometry, and `test/list_dismiss_test.dart` the list-vs-dismiss arena (with a
+device touch slop). Run `flutter test` before changing any of them.
+
 `test/zoom_geometry_test.dart` pins these defaults to the native samples (the
 open spring stays within ±0.02 of the native curve at every sample).
 

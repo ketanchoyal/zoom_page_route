@@ -132,6 +132,24 @@ class ZoomGeometry {
     );
   }
 
+  /// A system back gesture (Android predictive back) moves the page exactly
+  /// like the left-edge swipe: [start] is where the finger went down, [now]
+  /// where it is. A swipe from the right edge is the mirror image.
+  ZoomFrame systemBack(Offset start, Offset now, {required bool fromLeft}) {
+    if (fromLeft) return edgeDrag(now - start, anchor: start);
+    final mirrored = edgeDrag(
+      Offset(start.dx - now.dx, now.dy - start.dy),
+      anchor: Offset(screen.width - start.dx, start.dy),
+    );
+    final r = mirrored.rect;
+    return ZoomFrame(
+      rect: Rect.fromLTRB(screen.width - r.right, r.top, screen.width - r.left, r.bottom),
+      radius: mirrored.radius,
+      dim: mirrored.dim,
+      originOpacity: 0,
+    );
+  }
+
   static double _tanh(double x) {
     final e = math.exp(2 * x);
     return (e - 1) / (e + 1);

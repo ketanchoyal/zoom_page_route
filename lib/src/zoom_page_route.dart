@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/physics.dart';
 
@@ -193,7 +194,7 @@ class ZoomDismissBuilder extends StatelessWidget {
   }
 }
 
-enum _DragAxis { vertical, edge }
+enum _DragAxis { vertical, edge, predictiveBack }
 
 class _ZoomPresenter extends StatefulWidget {
   const _ZoomPresenter({required this.route, required this.child});
@@ -205,7 +206,7 @@ class _ZoomPresenter extends StatefulWidget {
   State<_ZoomPresenter> createState() => _ZoomPresenterState();
 }
 
-class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProviderStateMixin {
+class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   ZoomPageRoute<dynamic> get _route => widget.route;
   ZoomTransitionSpec get _spec => _route.spec;
 
@@ -231,6 +232,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
     _route._source?.hide();
     _route.animation?.addStatusListener(_onAnimationStatus);
     _route.animation?.addListener(_onAnimationTick);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   /// 1 → 0 over the last stretch before [ZoomNative.toolbarRevealProgress], so
@@ -263,6 +265,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
   void dispose() {
     _route.animation?.removeStatusListener(_onAnimationStatus);
     _route.animation?.removeListener(_onAnimationTick);
+    WidgetsBinding.instance.removeObserver(this);
     _route._source?.show();
     _cancelController.dispose();
     super.dispose();
@@ -277,12 +280,71 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
 
   Offset get _effectiveDrag => _drag * (_cancelController.isAnimating ? _cancelController.value : 1);
 
+  // Android predictive back (the system back gesture): the events it started
+  // with and is at, for the swipe edge and the finger's position.
+  PredictiveBackEvent? _backStart;
+  PredictiveBackEvent? _backNow;
+
+  /// Where the back gesture's finger went down and is now, in logical pixels;
+  /// while a cancelled gesture springs back, the travel shrinks to zero.
+  (Offset, Offset) get _backTouch {
+    final ratio = View.of(context).devicePixelRatio;
+    final edgeX = _backStart?.swipeEdge == SwipeEdge.right ? _screen.width : 0.0;
+    final start = (_backStart?.touchOffset ?? Offset(edgeX * ratio, _screen.height / 2 * ratio)) / ratio;
+    final raw = (_backNow?.touchOffset ?? _backStart?.touchOffset ?? start * ratio) / ratio;
+    final factor = _cancelController.isAnimating ? _cancelController.value : 1.0;
+    return (start, start + (raw - start) * factor);
+  }
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    if (backEvent.isButtonEvent || !_canStartDismiss) return false;
+    setState(() {
+      _dragAxis = _DragAxis.predictiveBack;
+      _backStart = _backNow = backEvent;
+    });
+    _route.navigator?.didStartUserGesture();
+    return true;
+  }
+
+  @override
+  void handleUpdateBackGestureProgress(PredictiveBackEvent backEvent) {
+    if (_dragAxis != _DragAxis.predictiveBack) return;
+    setState(() {
+      _backNow = backEvent;
+    });
+    _route._dismissProgress.value = _dragFraction;
+  }
+
+  @override
+  void handleCommitBackGesture() {
+    if (_dragAxis != _DragAxis.predictiveBack) return;
+    _route.navigator?.didStopUserGesture();
+    if (!_route.isCurrent) return;
+    // Zoom back into the source from where the gesture left the page.
+    final release = _frame(_geometryFor(_screen), 1);
+    setState(() {
+      _releaseFrame = release;
+      _dragAxis = null;
+    });
+    _route._dismissProgress.value = 0;
+    _route.navigator?.pop();
+  }
+
+  @override
+  void handleCancelBackGesture() {
+    if (_dragAxis != _DragAxis.predictiveBack) return;
+    _route.navigator?.didStopUserGesture();
+    _springBack();
+  }
+
   double get _dragFraction {
     if (_screen.isEmpty) return 0;
     final drag = _effectiveDrag;
     return switch (_dragAxis) {
       _DragAxis.vertical => (drag.dy / _screen.height).clamp(0.0, 1.0),
       _DragAxis.edge => (drag.dx / _screen.width).clamp(0.0, 1.0),
+      _DragAxis.predictiveBack => ((_backTouch.$2.dx - _backTouch.$1.dx).abs() / _screen.width).clamp(0.0, 1.0),
       null => 0.0,
     };
   }
@@ -320,6 +382,11 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
         return geometry.verticalDrag(_effectiveDrag, anchor: _dragAnchor);
       case _DragAxis.edge:
         return geometry.edgeDrag(_effectiveDrag, anchor: _dragAnchor);
+      case _DragAxis.predictiveBack:
+        // Same motion as the iOS edge swipe, driven by the system gesture's
+        // finger position (Android reports it in physical pixels).
+        final (start, now) = _backTouch;
+        return geometry.systemBack(start, now, fromLeft: _backStart?.swipeEdge != SwipeEdge.right);
       case null:
         final release = _releaseFrame;
         return release != null ? geometry.settleFrom(release, progress) : geometry.transition(progress);
@@ -343,7 +410,9 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
 
   void _onDragEnd(DragEndDetails details) {
     final axis = _dragAxis;
-    if (axis == null) return;
+    // A system back gesture ends through handleCommit/CancelBackGesture; the
+    // pointer the system took over only cancels here.
+    if (axis == null || axis == _DragAxis.predictiveBack) return;
     final velocity = details.velocity.pixelsPerSecond;
     final fraction = _dragFraction;
     final along = axis == _DragAxis.vertical ? velocity.dy : velocity.dx;
@@ -366,6 +435,11 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
       return;
     }
 
+    _springBack();
+  }
+
+  /// Springs a cancelled drag or back gesture back to full screen.
+  void _springBack() {
     _cancelController.value = 1;
     _cancelController.addListener(_onCancelTick);
     _cancelController.animateWith(SpringSimulation(_spec.closeSpring, 1, 0, 0, snapToEnd: true)).whenCompleteOrCancel(() {
@@ -375,6 +449,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
       setState(() {
         _dragAxis = null;
         _drag = Offset.zero;
+        _backStart = _backNow = null;
       });
     });
   }
@@ -382,7 +457,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
   void _onCancelTick() => _route._dismissProgress.value = _dragFraction;
 
   void _onDragCancel() {
-    if (_dragAxis == null) return;
+    if (_dragAxis == null || _dragAxis == _DragAxis.predictiveBack) return;
     _onDragEnd(DragEndDetails());
   }
 
@@ -553,6 +628,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                     _DismissDragRecognizer: GestureRecognizerFactoryWithHandlers<_DismissDragRecognizer>(
                       () => _DismissDragRecognizer(axis: Axis.vertical, debugOwner: this),
                       (recognizer) => recognizer
+                        ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
                         ..canStart = ((position) => _canStartDismiss && _contentAtTop)
                         ..onStart = ((details) => _onDragStart(_DragAxis.vertical, details))
                         ..onUpdate = _onDragUpdate
@@ -562,10 +638,15 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                     _EdgeDismissDragRecognizer: GestureRecognizerFactoryWithHandlers<_EdgeDismissDragRecognizer>(
                       () => _EdgeDismissDragRecognizer(debugOwner: this),
                       (recognizer) => recognizer
+                        ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
                         ..canStart = ((position) {
                           final box = context.findRenderObject();
                           final local = box is RenderBox ? box.globalToLocal(position) : position;
-                          return _canStartDismiss && local.dx <= _spec.edgeWidth;
+                          // On Android that edge belongs to the system back
+                          // gesture (handled as predictive back instead).
+                          return _canStartDismiss &&
+                              local.dx <= _spec.edgeWidth &&
+                              defaultTargetPlatform != TargetPlatform.android;
                         })
                         ..onStart = ((details) => _onDragStart(_DragAxis.edge, details))
                         ..onUpdate = _onDragUpdate
@@ -633,7 +714,10 @@ class _DismissDragRecognizer extends PanGestureRecognizer {
     final delta = (_lastPosition ?? Offset.zero) - (_downPosition ?? Offset.zero);
     final along = axis == Axis.vertical ? delta.dy : delta.dx;
     final across = axis == Axis.vertical ? delta.dx : delta.dy;
-    return along > across.abs() && along > computeHitSlop(pointerDeviceKind, gestureSettings);
+    // Half the scrollables' slop (same device gesture settings as theirs), so a
+    // drag in the dismiss direction wins over a list at its edge even when it
+    // is slow, as natively; a fast drag crosses both thresholds in one event.
+    return along > across.abs() && along > computeHitSlop(pointerDeviceKind, gestureSettings) / 2;
   }
 
   @override
@@ -645,3 +729,4 @@ class _DismissDragRecognizer extends PanGestureRecognizer {
 class _EdgeDismissDragRecognizer extends _DismissDragRecognizer {
   _EdgeDismissDragRecognizer({super.debugOwner}) : super(axis: Axis.horizontal);
 }
+

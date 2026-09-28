@@ -11,8 +11,13 @@ import 'package:zoom_page_route/zoom_page_route.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // The device's display corner radius (62 pt on iPhone 17 Pro, much smaller
-  // on iPad), read natively in AppDelegate.swift.
-  final cornerRadius = await const MethodChannel('zoom_page_route_example/display').invokeMethod<double>('cornerRadius');
+  // on iPad), read natively in AppDelegate.swift / MainActivity.kt.
+  double? cornerRadius;
+  try {
+    cornerRadius = await const MethodChannel('zoom_page_route_example/display').invokeMethod<double>('cornerRadius');
+  } on MissingPluginException {
+    cornerRadius = 0;
+  }
   ZoomPageRoute.defaultScreenCornerRadius = () => cornerRadius ?? 0;
   runApp(const ParityApp());
 }
