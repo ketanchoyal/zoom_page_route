@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/material.dart' show Theme;
+import 'package:flutter/material.dart' show MaterialRouteTransitionMixin, Theme;
 import 'package:flutter/physics.dart';
 
 import 'zoom_geometry.dart';
@@ -160,6 +160,19 @@ class ZoomPageRoute<T> extends PageRoute<T> {
   @override
   Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
     return _ZoomPresenter(route: this, child: builder(context));
+  }
+
+  /// Whether this page animates out when [nextRoute] is pushed on top. As with
+  /// Flutter's Material and Cupertino routes: only for a regular (non
+  /// fullscreen-dialog) page route using one of their transitions, which gets
+  /// the usual iOS parallax, or when [nextRoute] brings a delegated transition
+  /// (another zoom page with `recedeRouteBelow`). Another zoom page otherwise
+  /// leaves this one where it is, as natively, instead of sliding it left.
+  @override
+  bool canTransitionTo(TransitionRoute<dynamic> nextRoute) {
+    if (nextRoute is ModalRoute && nextRoute.delegatedTransition != null) return true;
+    if (nextRoute is! PageRoute || nextRoute.fullscreenDialog) return false;
+    return nextRoute is CupertinoRouteTransitionMixin || nextRoute is MaterialRouteTransitionMixin;
   }
 
   @override
