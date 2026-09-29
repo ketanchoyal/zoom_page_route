@@ -374,6 +374,8 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
     };
   }
 
+  Offset _lastNavigatorOffset = Offset.zero;
+
   ZoomGeometry _geometryFor(Size screen) => ZoomGeometry(
     spec: _spec,
     screen: screen,
@@ -395,10 +397,14 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
       );
     }
     final navigatorBox = _route.navigator?.context.findRenderObject();
-    final navigatorOffset = navigatorBox is RenderBox && navigatorBox.hasSize
-        ? navigatorBox.localToGlobal(Offset.zero)
-        : Offset.zero;
-    return source.globalRect.shift(-navigatorOffset);
+    if (navigatorBox is RenderBox && ZoomSource.laidOutUpToRoot(navigatorBox)) {
+      try {
+        _lastNavigatorOffset = navigatorBox.localToGlobal(Offset.zero);
+      } catch (_) {
+        // Fall back to _lastNavigatorOffset if transform fails during layout passes.
+      }
+    }
+    return source.globalRect.shift(-_lastNavigatorOffset);
   }
 
   ZoomFrame _frame(ZoomGeometry geometry, double progress) {
@@ -504,7 +510,8 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
   @override
   Widget build(BuildContext context) {
     final animation = _route.animation!;
-    final origin = _route._source?.buildOrigin(_route.navigator!.context);
+    final navigatorContext = _route.navigator?.context;
+    final origin = navigatorContext != null ? _route._source?.buildOrigin(navigatorContext) : null;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -513,12 +520,24 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
           animation: Listenable.merge([animation, _cancelController]),
           builder: (context, page) {
             final screen = _screen;
-            final frame = _frame(_geometryFor(screen), animation.value);
+            final settled = animation.isCompleted && _dragAxis == null && _releaseFrame == null;
+            final ZoomFrame frame;
+            if (settled) {
+              frame = ZoomFrame(
+                rect: Offset.zero & screen,
+                radius: _route.screenCornerRadius,
+                dim: 0,
+                originOpacity: 0,
+              );
+            } else {
+              frame = _frame(_geometryFor(screen), animation.value);
+            }
             final rect = frame.rect;
             final scale = screen.width == 0 ? 1.0 : rect.width / screen.width;
             final pageClip = Rect.fromLTWH(0, 0, screen.width, scale == 0 ? screen.height : rect.height / scale);
-            final originSize = _route._source?.globalRect.size ?? Size.zero;
-            final settled = animation.isCompleted && _dragAxis == null && _releaseFrame == null;
+            final Size originSize = (settled || origin == null)
+                ? Size.zero
+                : (_route._source?.globalRect.size ?? Size.zero);
             // Natively a toolbar item is not blown up into the page (a 24 pt
             // icon scaled to cover the page is a huge blurry glyph): its copy
             // is not drawn and the page itself fades in as it grows instead.
