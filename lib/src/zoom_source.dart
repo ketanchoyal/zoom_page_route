@@ -107,17 +107,18 @@ class ZoomSource extends StatefulWidget {
 
   @override
   State<ZoomSource> createState() => _ZoomSourceState();
+}
 
-  /// localToGlobal walks every ancestor's transform, and an ancestor that is
-  /// being laid out again (the route below rebuilding during a rotation or a
-  /// hot reload) has no size yet; keep the last good rect for that frame.
-  static bool laidOutUpToRoot(RenderBox box) {
-    if (!box.attached) return false;
-    for (RenderObject? node = box; node != null; node = node.parent) {
-      if (node is RenderBox && !node.hasSize) return false;
-    }
-    return true;
+/// Whether [box] and every render box above it have been laid out, so that
+/// localToGlobal can walk their transforms. An ancestor being laid out again
+/// as a new render object (the tree rebuilt by a rotation or a hot reload) has
+/// no size yet. Internal to the package (not exported).
+bool zoomLaidOutUpToRoot(RenderBox box) {
+  if (!box.attached) return false;
+  for (RenderObject? node = box; node != null; node = node.parent) {
+    if (node is RenderBox && !node.hasSize) return false;
   }
+  return true;
 }
 
 /// A live source with [old]'s tag to take over from [old] once it is no longer
@@ -280,12 +281,8 @@ class _ZoomSourceState extends State<ZoomSource> with SingleTickerProviderStateM
   @override
   Rect get globalRect {
     final box = isAvailable ? context.findRenderObject() : null;
-    if (box is RenderBox && ZoomSource.laidOutUpToRoot(box)) {
-      try {
-        _lastRect = box.localToGlobal(Offset.zero) & box.size;
-      } catch (_) {
-        // Fall back to _lastRect if transform fails during layout.
-      }
+    if (box is RenderBox && zoomLaidOutUpToRoot(box)) {
+      _lastRect = box.localToGlobal(Offset.zero) & box.size;
     }
     return _lastRect;
   }

@@ -397,12 +397,10 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
       );
     }
     final navigatorBox = _route.navigator?.context.findRenderObject();
-    if (navigatorBox is RenderBox && ZoomSource.laidOutUpToRoot(navigatorBox)) {
-      try {
-        _lastNavigatorOffset = navigatorBox.localToGlobal(Offset.zero);
-      } catch (_) {
-        // Fall back to _lastNavigatorOffset if transform fails during layout passes.
-      }
+    // During a rotation an ancestor can be a new render object not laid out
+    // yet; localToGlobal through it asserts, so keep the last good offset.
+    if (navigatorBox is RenderBox && zoomLaidOutUpToRoot(navigatorBox)) {
+      _lastNavigatorOffset = navigatorBox.localToGlobal(Offset.zero);
     }
     return source.globalRect.shift(-_lastNavigatorOffset);
   }
