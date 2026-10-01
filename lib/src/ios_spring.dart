@@ -55,6 +55,26 @@ abstract final class IOSSpring {
   /// The pre-iOS 17 `Animation.spring()` default (response 0.55 s, damping 0.825).
   static final SpringDescription legacyDefault = withResponse();
 
+  // Navigation: the springs of the iOS zoom transition
+  // (`.navigationTransition(.zoom)`), measured frame by frame from SwiftUI.
+  // UIKit drives it with its own spring, quicker than the plain presets above
+  // (which are 0.5 s); these are what `ZoomTransitionSpec` uses by default.
+
+  /// Zoom navigation, opening from a content source (a card): a quick `.smooth`
+  /// with a hair of bounce (response 0.375 s, ζ 0.98).
+  static final SpringDescription zoomOpen = smoothWith(duration: 0.375, extraBounce: 0.02);
+
+  /// Zoom navigation, closing into a content source, including the settle
+  /// after a drag dismiss: a little quicker than [zoomOpen] (0.329 s, ζ 0.98).
+  static final SpringDescription zoomClose = smoothWith(duration: 0.329, extraBounce: 0.02);
+
+  /// Zoom navigation, opening from a toolbar item (e.g. a cart button): a quick
+  /// `.snappy`, slightly less bouncy than its default (0.28 s, ζ 0.87).
+  static final SpringDescription zoomToolbarOpen = snappyWith(duration: 0.28, extraBounce: -0.02);
+
+  /// Zoom navigation, closing into a toolbar item (0.24 s, ζ 0.9).
+  static final SpringDescription zoomToolbarClose = snappyWith(duration: 0.24, extraBounce: -0.05);
+
   /// `.smooth(duration:extraBounce:)`.
   static SpringDescription smoothWith({double duration = 0.5, double extraBounce = 0}) =>
       of(duration: duration, bounce: extraBounce);

@@ -94,6 +94,8 @@ anywhere (`SpringSimulation`, `AnimationController.animateWith`, or
 | `IOSSpring.of(duration:bounce:)` | `Spring(duration:bounce:)` |
 | `IOSSpring.withResponse(response:dampingRatio:)` | `Spring(response:dampingRatio:)`, `UISpringTimingParameters` |
 | `IOSSpring.smoothWith/snappyWith/bouncyWith(duration:extraBounce:)` | `.smooth/.snappy/.bouncy(duration:extraBounce:)` |
+| `IOSSpring.zoomOpen` / `zoomClose` | `.navigationTransition(.zoom)` from content: 0.375 s / 0.329 s, ζ 0.98 (measured) |
+| `IOSSpring.zoomToolbarOpen` / `zoomToolbarClose` | the same from a toolbar item: 0.28 s ζ 0.87 / 0.24 s ζ 0.9 (measured) |
 
 This is Apple's conversion: mass 1, stiffness (2π/duration)², damping
 4π·ζ/duration, with ζ = 1 − bounce (or 1/(1 + bounce) when bounce < 0).
@@ -111,9 +113,9 @@ frame (`native_reference/`, see below).
 
 | | Native measurement | Flutter (fixed unless noted) |
 |---|---|---|
-| Open spring | ζ ≈ 0.975–0.98, response ≈ 0.37–0.38 s (2 runs, RMS < 0.004) | mass 1, stiffness 281, damping 32.8 |
-| Close spring | ζ ≈ 0.98, response ≈ 0.33 s (6 usable frames) | mass 1, stiffness 365, damping 37.5 |
-| Toolbar source (e.g. cart button) | clearly quicker, slightly bouncier: response ≈ 0.25–0.33 s, ζ ≈ 0.83–0.92 (the iOS 26 glass-button morph blends into the start; varies more between runs) | `ZoomSource(toolbar: true)` → `toolbarOpenSpring` (0.28 s, ζ 0.87), `toolbarCloseSpring` (0.24 s, ζ 0.9) |
+| Open spring | ζ ≈ 0.975–0.98, response ≈ 0.37–0.38 s (2 runs, RMS < 0.004) | `IOSSpring.zoomOpen` (`smoothWith(duration: 0.375, extraBounce: 0.02)`, ζ 0.98) |
+| Close spring | ζ ≈ 0.98, response ≈ 0.33 s (6 usable frames) | `IOSSpring.zoomClose` (`smoothWith(duration: 0.329, extraBounce: 0.02)`, ζ 0.98) |
+| Toolbar source (e.g. cart button) | clearly quicker, slightly bouncier: response ≈ 0.25–0.33 s, ζ ≈ 0.83–0.92 (the iOS 26 glass-button morph blends into the start; varies more between runs) | `ZoomSource(toolbar: true)` → `IOSSpring.zoomToolbarOpen` (`snappyWith(duration: 0.28, extraBounce: -0.02)`, ζ 0.87) / `zoomToolbarClose` (`snappyWith(duration: 0.24, extraBounce: -0.05)`, ζ 0.9) |
 | Background dim | black α ≈ 0.33 × progress | `maxDim` 0.33 |
 | Previous page | content shrinks about the screen centre to ≈0.915 as the page opens, holds it while dragging, grows back on close; uncovered area shows the page background. Natively the navigation bar stays full size, so no corners show | off by default (`recedeRouteBelow`); when on, the whole route shrinks (`backgroundScale` 0.915, via `delegatedTransition`), clipped to the display corner radius so a coloured app bar's corners stay inside the screen shape; `backgroundFillColor` (theme scaffold background) |
 | Page shadow | soft and centred: ~15% darker 6 pt out, ~8% at 20 pt | `shadowOpacity` 0.18, `shadowBlur` 40 |

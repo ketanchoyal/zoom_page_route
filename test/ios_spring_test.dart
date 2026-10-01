@@ -47,4 +47,27 @@ void main() {
     expect(_overshoot(IOSSpring.interactive), lessThan(0.006));
     expect(_overshoot(IOSSpring.legacyDefault), closeTo(0.008, 0.004)); // native 0.8 %
   });
+
+  test('zoom navigation presets are the measured native springs, and the spec uses them', () {
+    const spec = ZoomTransitionSpec.standard;
+    void expectSpring(SpringDescription s, double response, double dampingRatio) {
+      expect(IOSSpring.responseOf(s), closeTo(response, 1e-9));
+      expect(IOSSpring.dampingRatioOf(s), closeTo(dampingRatio, 1e-9));
+    }
+
+    expectSpring(IOSSpring.zoomOpen, 0.375, 0.98);
+    expectSpring(IOSSpring.zoomClose, 0.329, 0.98);
+    expectSpring(IOSSpring.zoomToolbarOpen, 0.28, 0.87);
+    expectSpring(IOSSpring.zoomToolbarClose, 0.24, 0.9);
+    expect(identical(spec.openSpring, IOSSpring.zoomOpen), isTrue);
+    expect(identical(spec.closeSpring, IOSSpring.zoomClose), isTrue);
+    expect(identical(spec.toolbarOpenSpring, IOSSpring.zoomToolbarOpen), isTrue);
+    expect(identical(spec.toolbarCloseSpring, IOSSpring.zoomToolbarClose), isTrue);
+    // Still const, and any IOSSpring preset can replace a default.
+    const custom = ZoomTransitionSpec(recedeRouteBelow: true);
+    expect(custom.openSpring.stiffness, spec.openSpring.stiffness);
+    final snappy = ZoomTransitionSpec(openSpring: IOSSpring.snappy);
+    expect(identical(snappy.openSpring, IOSSpring.snappy), isTrue);
+    expect(snappy.closeSpring.stiffness, spec.closeSpring.stiffness);
+  });
 }

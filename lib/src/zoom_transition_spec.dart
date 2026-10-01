@@ -2,15 +2,17 @@ import 'dart:ui' show Color;
 
 import 'package:flutter/physics.dart';
 
+import 'ios_spring.dart';
+
 /// The choices an app can make about the zoom transition. Everything that
 /// describes how iOS itself animates (drag geometry, fades, dim, shadow) is
 /// measured from native SwiftUI and fixed; see the README's "Measured spec".
 class ZoomTransitionSpec {
   const ZoomTransitionSpec({
-    this.openSpring = const SpringDescription(mass: 1, stiffness: 281, damping: 32.8),
-    this.closeSpring = const SpringDescription(mass: 1, stiffness: 365, damping: 37.5),
-    this.toolbarOpenSpring = const SpringDescription(mass: 1, stiffness: 503.55, damping: 39.05),
-    this.toolbarCloseSpring = const SpringDescription(mass: 1, stiffness: 685.39, damping: 47.12),
+    SpringDescription? openSpring,
+    SpringDescription? closeSpring,
+    SpringDescription? toolbarOpenSpring,
+    SpringDescription? toolbarCloseSpring,
     this.recedeRouteBelow = false,
     this.backgroundFillColor,
     this.toolbarGlassColor = const Color(0xFFFFFFFF),
@@ -18,23 +20,35 @@ class ZoomTransitionSpec {
     this.dismissVelocity = 700,
     this.verticalDismissFraction = 0.2,
     this.edgeDismissFraction = 0.3,
-  });
+  }) : _openSpring = openSpring,
+       _closeSpring = closeSpring,
+       _toolbarOpenSpring = toolbarOpenSpring,
+       _toolbarCloseSpring = toolbarCloseSpring;
 
   /// The spec with every default (measured) value.
   static const ZoomTransitionSpec standard = ZoomTransitionSpec();
 
-  /// Push. Native: ζ ≈ 0.98, response ≈ 0.375 s.
-  final SpringDescription openSpring;
+  final SpringDescription? _openSpring;
+  final SpringDescription? _closeSpring;
+  final SpringDescription? _toolbarOpenSpring;
+  final SpringDescription? _toolbarCloseSpring;
 
-  /// Pop, including the settle after a drag dismiss. Native: ζ ≈ 0.98,
-  /// response ≈ 0.33 s.
-  final SpringDescription closeSpring;
+  // The springs default to IOSSpring's zoom navigation presets (built at
+  // runtime, so they are filled in here and the constructor stays const).
+
+  /// Push. Default [IOSSpring.zoomOpen] (native: 0.375 s, ζ 0.98). Any
+  /// [IOSSpring] preset can be passed instead, e.g. `IOSSpring.snappy`.
+  SpringDescription get openSpring => _openSpring ?? IOSSpring.zoomOpen;
+
+  /// Pop, including the settle after a drag dismiss. Default
+  /// [IOSSpring.zoomClose] (native: 0.33 s, ζ 0.98).
+  SpringDescription get closeSpring => _closeSpring ?? IOSSpring.zoomClose;
 
   /// Push/pop when the source is a toolbar item (`ZoomSource(toolbar: true)`),
-  /// which natively is quicker and a touch bouncier: response 0.28 s / ζ 0.87
-  /// opening, 0.24 s / ζ 0.9 closing (`IOSSpring.withResponse`).
-  final SpringDescription toolbarOpenSpring;
-  final SpringDescription toolbarCloseSpring;
+  /// natively quicker and a touch bouncier. Defaults [IOSSpring.zoomToolbarOpen]
+  /// and [IOSSpring.zoomToolbarClose].
+  SpringDescription get toolbarOpenSpring => _toolbarOpenSpring ?? IOSSpring.zoomToolbarOpen;
+  SpringDescription get toolbarCloseSpring => _toolbarCloseSpring ?? IOSSpring.zoomToolbarClose;
 
   /// Whether the route below recedes (shrinks) while this page is open, as it
   /// does natively. Off by default: natively only the content recedes and the
