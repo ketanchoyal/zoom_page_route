@@ -3,6 +3,7 @@ import 'dart:ui' show Color;
 import 'package:flutter/physics.dart';
 
 import 'ios_spring.dart';
+import 'zoom_blur_effect.dart';
 
 /// The choices an app can make about the zoom transition. Everything that
 /// describes how iOS itself animates (drag geometry, fades, dim, shadow) is
@@ -15,6 +16,7 @@ class ZoomTransitionSpec {
     SpringDescription? toolbarCloseSpring,
     this.recedeRouteBelow = false,
     this.backgroundFillColor,
+    this.dimmingVisualEffect,
     this.toolbarGlassColor = const Color(0xFFFFFFFF),
     this.edgeWidth = 24,
     this.dismissVelocity = 700,
@@ -59,6 +61,13 @@ class ZoomTransitionSpec {
   /// With [recedeRouteBelow], fills the area the receding route no longer
   /// covers. Defaults to the theme's scaffold background.
   final Color? backgroundFillColor;
+
+  /// A blur material over the route below in place of the dim, as UIKit's
+  /// `ZoomOptions.dimmingVisualEffect` (e.g. [ZoomBlurEffect.systemMaterial]).
+  /// Null (the default) dims, as natively. Like the native effect, it is
+  /// absent at rest, at full strength while the page is open or dragged, and
+  /// follows the transition's progress opening and closing.
+  final ZoomBlurEffect? dimmingVisualEffect;
 
   /// Tint of the glass a toolbar source grows into (white natively; darker in
   /// a dark theme).

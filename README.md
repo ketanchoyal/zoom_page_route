@@ -59,7 +59,8 @@ completely.
 - `ZoomDismissBuilder` rebuilds with the drag-to-dismiss progress (0–1), e.g.
   to fade a back button while the page is dragged.
 - `ZoomTransitionSpec` (const) holds the choices an app makes: the four
-  springs, `recedeRouteBelow`, `backgroundFillColor`, `toolbarGlassColor`,
+  springs, `recedeRouteBelow`, `backgroundFillColor`, `dimmingVisualEffect`,
+  `toolbarGlassColor`,
   `edgeWidth` and the dismiss thresholds. Pass one as `spec:` to override.
   How iOS itself animates (drag geometry, fades, dim, shadow) is measured and
   fixed (see below), not configurable.
@@ -117,6 +118,7 @@ frame (`native_reference/`, see below).
 | Close spring | ζ ≈ 0.98, response ≈ 0.33 s (6 usable frames) | `IOSSpring.zoomClose` (`smoothWith(duration: 0.329, extraBounce: 0.02)`, ζ 0.98) |
 | Toolbar source (e.g. cart button) | clearly quicker, slightly bouncier: response ≈ 0.25–0.33 s, ζ ≈ 0.83–0.92 (the iOS 26 glass-button morph blends into the start; varies more between runs) | `ZoomSource(toolbar: true)` → `IOSSpring.zoomToolbarOpen` (`snappyWith(duration: 0.28, extraBounce: -0.02)`, ζ 0.87) / `zoomToolbarClose` (`snappyWith(duration: 0.24, extraBounce: -0.05)`, ζ 0.9) |
 | Background dim | black α ≈ 0.33 × progress | `maxDim` 0.33 |
+| Blur instead of dim (UIKit `ZoomOptions.dimmingVisualEffect`; SwiftUI's `.zoom` has no option) | a `UIBlurEffect` replaces the dim: none at rest, full strength while open and for the whole drag, following the open/close progress (blur radius and colour change both linear in it). `systemMaterial` (light): black → 196, white → 240 (≈2% of the default dim remains), edge spread σ ≈ 29 pt | `ZoomTransitionSpec(dimmingVisualEffect: ZoomBlurEffect.systemMaterial)`; presets for every `UIBlurEffect.Style` (system materials adapt to a dark theme; `regular`/`prominent` alias as natively), each a blur + an sRGB colour matrix fitted to 16 flat colours (mean error ≤ 3/255, Chrome ≈ 6). Side by side in a drag: black 191–194, white 247, σ ≈ 31.6; release fade 0.86/0.51/0.27/0.12 at 0/50/100/150 ms (native 0.81/0.53/0.31/0.14) |
 | Previous page | content shrinks about the screen centre to ≈0.915 as the page opens, holds it while dragging, grows back on close; uncovered area shows the page background. Natively the navigation bar stays full size, so no corners show | off by default (`recedeRouteBelow`); when on, the whole route shrinks (`backgroundScale` 0.915, via `delegatedTransition`), clipped to the display corner radius so a coloured app bar's corners stay inside the screen shape; `backgroundFillColor` (theme scaffold background) |
 | Page shadow | soft and centred: ~15% darker 6 pt out, ~8% at 20 pt | `shadowOpacity` 0.18, `shadowBlur` 40 |
 | Source ↔ page cross-fade | opening: source hidden by ~45% progress; closing: source back early (≈60% at 64% of the way, opaque from 40%) while the page fades to ≈60%; the source keeps its proportions, width-fitted at the top of the page | `crossfadeEnd` 0.45, `closeCrossfadeLength` 0.6, `contentCloseEndOpacity` 0.6 |
@@ -167,6 +169,14 @@ Two apps with the same screens, meant to run side by side:
 Launch the native app with `-measure`, and run the example with
 `--dart-define=MEASURE=true`, to paint the Cart page magenta so the cart
 (toolbar) zoom can be tracked too.
+
+Blur materials: launch the native app with `-blurLab <UIBlurEffect style>`
+(`none` for the dim; `-dimColor clear`, `-dark 1` optional) for a UIKit zoom
+push with `dimmingVisualEffect` over a measurable background (black/white
+halves, colour bands). Add `-still 1` (and `-fill r,g,b`) to lay the effect
+statically over flat blocks or one colour, which is how the presets' colour
+matrices were fitted. The example's twin is
+`--dart-define=BLUR_LAB=<ZoomBlurEffect preset>` (`BLUR_LAB_DARK=true`).
 
 Both have a **MEASURE** card (cyan, 150×100) that opens a solid **magenta**
 page with a Close button, plus menu category cards, order cards and a cart

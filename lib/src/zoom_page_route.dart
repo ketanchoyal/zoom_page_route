@@ -541,6 +541,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
             // is not drawn and the page itself fades in as it grows instead.
             final toolbar = _route._source?.isToolbarItem ?? false;
             final progress = animation.value.clamp(0.0, 1.0);
+            final effect = _spec.dimmingVisualEffect?.resolve(Theme.of(context).brightness);
             final closing = animation.status == AnimationStatus.reverse || _releaseFrame != null;
             // With no source (a push from code) the page grows out of a small
             // centred rect and fades, as natively.
@@ -573,8 +574,19 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
             return Stack(
               fit: StackFit.expand,
               children: [
-                // Dim over the route below.
-                IgnorePointer(child: ColoredBox(color: Color.fromRGBO(0, 0, 0, settled ? 0 : frame.dim))),
+                // Dim over the route below, or the spec's blur material in its place.
+                IgnorePointer(
+                  child: effect != null
+                      ? BackdropFilter(
+                          // Off at rest: the open page covers the route below.
+                          enabled: !settled && progress > 0,
+                          // Natively full strength while dragging (progress is
+                          // 1 then) and following the transition otherwise.
+                          filter: effect.filterAt(settled ? 0 : progress),
+                          child: const SizedBox.expand(),
+                        )
+                      : ColoredBox(color: Color.fromRGBO(0, 0, 0, settled ? 0 : frame.dim)),
+                ),
                 // Soft shadow around the moving page (none once it is settled full screen).
                 Positioned.fromRect(
                   rect: rect,
@@ -627,7 +639,12 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                       opacity: pageOpacity,
                       child: ClipRRect(
                         clipper: _RRectClipper(pageClip, settled || scale == 0 ? 0 : frame.radius / scale),
-                        clipBehavior: Clip.antiAlias,
+                        // Saved to a layer while the page moves: with only the
+                        // clip, Impeller drops the rounded corners for whatever
+                        // paints after a backdrop filter in the page (a glass
+                        // button, then the app bar above it), so a drag showed
+                        // square corners. Settled, nothing is rounded.
+                        clipBehavior: settled ? Clip.antiAlias : Clip.antiAliasWithSaveLayer,
                         child: page,
                       ),
                     ),

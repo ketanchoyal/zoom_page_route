@@ -4,9 +4,15 @@ import SwiftUI
 struct ZoomNavDemoApp: App {
     var body: some Scene {
         WindowGroup {
-            HomeView()
-                .tint(Palette.red)
-                .preferredColorScheme(.light)
+            if let style = BlurLabLaunch.style {
+                BlurLabView(style: style, clearDim: BlurLabLaunch.clearDim)
+                    .ignoresSafeArea()
+                    .preferredColorScheme(BlurLabLaunch.dark ? .dark : .light)
+            } else {
+                HomeView()
+                    .tint(Palette.red)
+                    .preferredColorScheme(.light)
+            }
         }
     }
 }

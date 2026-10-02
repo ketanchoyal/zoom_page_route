@@ -11,10 +11,12 @@
 		5B9F002DE75048CDC26764A2 /* SpringsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61818114C4034EC514095F96 /* SpringsView.swift */; };
 		61E12015CCBBA02717C13C0C /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C867D7B580BC48F2EEDFFD18 /* Models.swift */; };
 		7954EB829700527EFDC6F44C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3C169102D80AC20F6294064 /* HomeView.swift */; };
+		AF76D696EED52864F7A0E944 /* BlurLab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41B26595FA0FB45BD2EEE000 /* BlurLab.swift */; };
 		E83BB1CB4EB36BFE591A9518 /* ZoomNavDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B355CB36606E2348A7C7CC /* ZoomNavDemoApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		41B26595FA0FB45BD2EEE000 /* BlurLab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlurLab.swift; sourceTree = "<group>"; };
 		4BDD995EBBE588E578370A8D /* ZoomNavDemo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ZoomNavDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		61818114C4034EC514095F96 /* SpringsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpringsView.swift; sourceTree = "<group>"; };
 		C867D7B580BC48F2EEDFFD18 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
@@ -35,6 +37,7 @@
 		2A29605AC2718EC81D8AD85D /* ZoomNavDemo */ = {
 			isa = PBXGroup;
 			children = (
+				41B26595FA0FB45BD2EEE000 /* BlurLab.swift */,
 				CA8FD426A367B1FA5B507021 /* DetailViews.swift */,
 				D3C169102D80AC20F6294064 /* HomeView.swift */,
 				C867D7B580BC48F2EEDFFD18 /* Models.swift */,
@@ -111,6 +114,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AF76D696EED52864F7A0E944 /* BlurLab.swift in Sources */,
 				3D1041738E03E6B83E7E3FE0 /* DetailViews.swift in Sources */,
 				7954EB829700527EFDC6F44C /* HomeView.swift in Sources */,
 				61E12015CCBBA02717C13C0C /* Models.swift in Sources */,

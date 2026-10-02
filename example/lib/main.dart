@@ -4,6 +4,8 @@ import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:zoom_page_route/zoom_page_route.dart';
 
+import 'blur_lab.dart';
+
 /// Parity app: the same screens as the SwiftUI demo (`zoom-nav-demo`, which uses
 /// `.navigationTransition(.zoom)`), so the two can be run side by side and
 /// recorded. The cyan MEASURE card opens a solid magenta page, which lets a
@@ -19,6 +21,11 @@ Future<void> main() async {
     cornerRadius = 0;
   }
   ZoomPageRoute.defaultScreenCornerRadius = () => cornerRadius ?? 0;
+  const blurLab = String.fromEnvironment('BLUR_LAB');
+  if (blurLab.isNotEmpty) {
+    runApp(const BlurLabApp(style: blurLab, dark: bool.fromEnvironment('BLUR_LAB_DARK')));
+    return;
+  }
   runApp(const ParityApp());
 }
 
