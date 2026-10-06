@@ -76,6 +76,11 @@ completely.
   route can only shrink the whole screen below (rounded to the display
   corners), so turn it on only when your screens look right that way. The
   `example` app turns it on for the parity comparison.
+  Either way the route below reports being covered: its
+  `secondaryAnimation` follows this page in and out, as under a regular iOS
+  push, so anything that reads it (e.g. liquid_glass_widgets'
+  `GlassNavigationShell`, whose pinned bar otherwise vanished on a zoom
+  page) sees the page arrive.
 - `maintainState` (default `true`) is exposed for apps that relied on the page
   being rebuilt when it is covered.
 

@@ -116,12 +116,30 @@ class ZoomPageRoute<T> extends PageRoute<T> {
   }
 
   /// Applied by the route below (Material and Cupertino routes accept it): it
-  /// recedes to [ZoomTransitionSpec.backgroundScale] while this route is open.
-  /// Instance-bound so a zoom route under another zoom route still receives it.
-  /// Null unless [ZoomTransitionSpec.recedeRouteBelow], so the route below
-  /// stays still.
+  /// recedes to [ZoomTransitionSpec.backgroundScale] while this route is open
+  /// with [ZoomTransitionSpec.recedeRouteBelow], and otherwise stays still.
+  ///
+  /// Never null, even when nothing recedes: a route below only drives its
+  /// `secondaryAnimation` from this route when it can transition to it, and
+  /// Material and Cupertino routes accept only their own kind or a route with
+  /// a delegated transition. Without one the route below never reports being
+  /// covered, so whatever reads that (e.g. liquid_glass_widgets'
+  /// GlassNavigationShell, which then dropped the open page's bar) sees this
+  /// page as never having arrived. A delegated transition also stands in for
+  /// the route below's own outgoing one, so it does not slide left either.
+  ///
+  /// Instance-bound: a route below only takes it when it differs from its own,
+  /// so a zoom route under another zoom route still receives it.
   @override
-  DelegatedTransitionBuilder? get delegatedTransition => spec.recedeRouteBelow ? _recedeRouteBelow : null;
+  DelegatedTransitionBuilder? get delegatedTransition => spec.recedeRouteBelow ? _recedeRouteBelow : _holdRouteBelow;
+
+  Widget? _holdRouteBelow(
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    bool allowSnapshotting,
+    Widget? child,
+  ) => child;
 
   Widget? _recedeRouteBelow(
     BuildContext context,
@@ -166,8 +184,9 @@ class ZoomPageRoute<T> extends PageRoute<T> {
   /// Flutter's Material and Cupertino routes: only for a regular (non
   /// fullscreen-dialog) page route using one of their transitions, which gets
   /// the usual iOS parallax, or when [nextRoute] brings a delegated transition
-  /// (another zoom page with `recedeRouteBelow`). Another zoom page otherwise
-  /// leaves this one where it is, as natively, instead of sliding it left.
+  /// (another zoom page). That transition replaces this page's own, so another
+  /// zoom page leaves this one where it is, as natively, instead of sliding it
+  /// left.
   @override
   bool canTransitionTo(TransitionRoute<dynamic> nextRoute) {
     if (nextRoute is ModalRoute && nextRoute.delegatedTransition != null) return true;
