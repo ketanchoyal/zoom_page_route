@@ -317,14 +317,27 @@ class _ZoomSourceState extends State<ZoomSource> with SingleTickerProviderStateM
     _unblur.animateTo(0, curve: Curves.easeOut);
   }
 
+  /// The state asked for during a frame, applied after it. The latest request
+  /// wins: a hide then a show in the same frame leaves the source shown.
+  bool? _pendingHidden;
+
   void _setHidden(bool hidden) {
-    if (!mounted || _hidden == hidden) return;
+    if (!mounted) return;
     // show() runs from the route's dispose, i.e. while the tree is being
     // finalized, where setState is not allowed; defer it to after the frame.
     if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.persistentCallbacks) {
-      SchedulerBinding.instance.addPostFrameCallback((_) => _setHidden(hidden));
+      if (_pendingHidden == null) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          final pending = _pendingHidden;
+          _pendingHidden = null;
+          if (pending != null) _setHidden(pending);
+        });
+      }
+      _pendingHidden = hidden;
       return;
     }
+    _pendingHidden = null;
+    if (_hidden == hidden) return;
     setState(() => _hidden = hidden);
   }
 
