@@ -267,7 +267,6 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
   /// Springs a cancelled drag back to full screen (1 → 0 scales [_drag]).
   late final AnimationController _cancelController = AnimationController.unbounded(vsync: this, value: 0);
 
-  bool _contentAtTop = true;
   Size _screen = Size.zero;
 
   @override
@@ -509,16 +508,37 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
     _onDragEnd(DragEndDetails());
   }
 
+  /// Whether each vertical scrollable in the page that has reported its
+  /// metrics is at its top, by the scrollable's context. Not only the
+  /// outermost one: the list is often nested (a PageView or TabBarView page,
+  /// a NestedScrollView body), and dragging down a scrolled list there must
+  /// scroll it, not dismiss.
+  final Map<BuildContext, bool> _verticalAtTop = {};
+
   bool _onScroll(Notification notification) {
-    final ScrollMetrics? metrics = switch (notification) {
-      ScrollNotification(:final metrics) when notification.depth == 0 => metrics,
-      ScrollMetricsNotification(:final metrics) when notification.depth == 0 => metrics,
-      _ => null,
+    final (ScrollMetrics? metrics, BuildContext? scrollable) = switch (notification) {
+      ScrollNotification(:final metrics, :final context) => (metrics, context),
+      ScrollMetricsNotification(:final metrics, :final context) => (metrics, context),
+      _ => (null, null),
     };
-    if (metrics != null && metrics.axis == Axis.vertical) {
-      _contentAtTop = metrics.pixels <= metrics.minScrollExtent + 0.5;
+    if (metrics != null && scrollable != null && metrics.axis == Axis.vertical) {
+      _verticalAtTop[scrollable] = metrics.pixels <= metrics.minScrollExtent + 0.5;
     }
     return false;
+  }
+
+  /// Whether every vertical scrollable under [globalPosition] is at its top.
+  /// As natively, a scrolled list only blocks a dismiss started on it: a drag
+  /// down from a fixed header above it still dismisses.
+  bool _contentAtTopAt(Offset globalPosition) {
+    _verticalAtTop.removeWhere((scrollable, _) => !scrollable.mounted);
+    for (final MapEntry(key: scrollable, value: atTop) in _verticalAtTop.entries) {
+      if (atTop) continue;
+      final box = scrollable.findRenderObject();
+      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
+      if ((Offset.zero & box.size).contains(box.globalToLocal(globalPosition))) return false;
+    }
+    return true;
   }
 
   // ---------------------------------------------------------------------------
@@ -707,7 +727,7 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                       () => _DismissDragRecognizer(axis: Axis.vertical, debugOwner: this),
                       (recognizer) => recognizer
                         ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
-                        ..canStart = ((position) => _canStartDismiss && _contentAtTop)
+                        ..canStart = ((position) => _canStartDismiss && _contentAtTopAt(position))
                         ..onStart = ((details) => _onDragStart(_DragAxis.vertical, details))
                         ..onUpdate = _onDragUpdate
                         ..onEnd = _onDragEnd

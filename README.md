@@ -64,11 +64,14 @@ completely.
   `edgeWidth` and the dismiss thresholds. Pass one as `spec:` to override.
   How iOS itself animates (drag geometry, fades, dim, shadow) is measured and
   fixed (see below), not configurable.
-- Pages with a vertical list: drag-down dismiss only starts when the page's
-  main vertical scrollable is at the top when the finger goes down. Otherwise
-  the list scrolls, and reaching the top mid-gesture does not switch to a
-  dismiss. Native SwiftUI behaves the same (checked side by side). Horizontal
-  and nested scrollables don't block it, and the left-edge swipe always works.
+- Pages with a vertical list: drag-down dismiss only starts when every
+  vertical scrollable under the finger is at its top when the finger goes
+  down, however deeply it is nested (a PageView or TabBarView page, a
+  NestedScrollView body). Otherwise the list scrolls, and reaching the top
+  mid-gesture does not switch to a dismiss. A scrolled list doesn't block a
+  drag started elsewhere, e.g. on a fixed header above it. Native SwiftUI
+  behaves the same (checked side by side, see the scroll lab below).
+  Horizontal scrollables don't block it, and the left-edge swipe always works.
   Drag-down dismiss wins over pull-to-refresh at the top of a page.
 - The route below stays still by default. Pass
   `ZoomTransitionSpec(recedeRouteBelow: true)` to shrink it like iOS does.
@@ -182,6 +185,12 @@ halves, colour bands). Add `-still 1` (and `-fill r,g,b`) to lay the effect
 statically over flat blocks or one colour, which is how the presets' colour
 matrices were fitted. The example's twin is
 `--dart-define=BLUR_LAB=<ZoomBlurEffect preset>` (`BLUR_LAB_DARK=true`).
+
+Dismiss next to scrollables: launch the native app with `-scrollLab <layout>`
+(`plain`: a list; `nested`: a list on a horizontally paged view; `header`: a
+fixed header above a list). A cyan card opens the page. The example's twin is
+`--dart-define=SCROLL_LAB=<layout>`. Scroll the list, then drag down on it or
+on the header and compare which one dismisses.
 
 Both have a **MEASURE** card (cyan, 150×100) that opens a solid **magenta**
 page with a Close button, plus menu category cards, order cards and a cart

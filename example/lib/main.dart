@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:zoom_page_route/zoom_page_route.dart';
 
 import 'blur_lab.dart';
+import 'scroll_lab.dart';
 
 /// Parity app: the same screens as the SwiftUI demo (`zoom-nav-demo`, which uses
 /// `.navigationTransition(.zoom)`), so the two can be run side by side and
@@ -24,6 +25,11 @@ Future<void> main() async {
   const blurLab = String.fromEnvironment('BLUR_LAB');
   if (blurLab.isNotEmpty) {
     runApp(const BlurLabApp(style: blurLab, dark: bool.fromEnvironment('BLUR_LAB_DARK')));
+    return;
+  }
+  const scrollLab = String.fromEnvironment('SCROLL_LAB');
+  if (scrollLab.isNotEmpty) {
+    runApp(const ScrollLabApp(layout: scrollLab));
     return;
   }
   runApp(const ParityApp());
