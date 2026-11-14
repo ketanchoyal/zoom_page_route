@@ -203,11 +203,17 @@ class ZoomPageRoute<T> extends PageRoute<T> {
   ) {
     // Only reacts to a page pushed on top (the usual iOS parallax); this
     // route's own entrance is drawn by _ZoomPresenter.
-    return CupertinoPageTransition(
+    final transition = CupertinoPageTransition(
       primaryRouteAnimation: kAlwaysCompleteAnimation,
       secondaryRouteAnimation: secondaryAnimation,
       linearTransition: false,
       child: child,
+    );
+    if (opaque) return transition;
+    return Semantics(
+      scopesRoute: true,
+      explicitChildNodes: true,
+      child: transition,
     );
   }
 
@@ -694,33 +700,36 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                 Positioned.fromRect(
                   rect: rect,
                   child: IgnorePointer(
-                    child: Opacity(
-                      opacity: origin == null || settled || toolbar
-                          ? 0
-                          // Natively the source reappears early while closing:
-                          // ≈60% at 64% of the way, opaque from 40% down.
-                          : closing && _dragAxis == null
-                          ? ((1 - progress) / ZoomNative.closeCrossfadeLength).clamp(0.0, 1.0)
-                          : frame.originOpacity,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(frame.radius),
-                        // Laid out at the source's own size (a bare FittedBox would give
-                        // it unbounded constraints), then scaled to the flying rect.
-                        child: origin == null
-                            ? const SizedBox.shrink()
-                            : FittedBox(
-                                // Width-fitted and pinned to the top, as natively: the
-                                // source keeps its proportions at the top of the page
-                                // (cover would blow a card's text up and crop it).
-                                fit: BoxFit.fitWidth,
-                                alignment: Alignment.topCenter,
-                                child: SizedBox.fromSize(size: originSize, child: origin),
-                              ),
+                    child: ExcludeSemantics(
+                      child: Opacity(
+                        opacity: origin == null || settled || toolbar
+                            ? 0
+                            // Natively the source reappears early while closing:
+                            // ≈60% at 64% of the way, opaque from 40% down.
+                            : closing && _dragAxis == null
+                            ? ((1 - progress) / ZoomNative.closeCrossfadeLength).clamp(0.0, 1.0)
+                            : frame.originOpacity,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(frame.radius),
+                          // Laid out at the source's own size (a bare FittedBox would give
+                          // it unbounded constraints), then scaled to the flying rect.
+                          child: origin == null
+                              ? const SizedBox.shrink()
+                              : FittedBox(
+                                  // Width-fitted and pinned to the top, as natively: the
+                                  // source keeps its proportions at the top of the page
+                                  // (cover would blow a card's text up and crop it).
+                                  fit: BoxFit.fitWidth,
+                                  alignment: Alignment.topCenter,
+                                  child: SizedBox.fromSize(size: originSize, child: origin),
+                                ),
+                        ),
                       ),
                     ),
                   ),
                 ),
                 RawGestureDetector(
+                  excludeFromSemantics: true,
                   behavior: HitTestBehavior.translucent,
                   gestures: {
                     _DismissDragRecognizer: GestureRecognizerFactoryWithHandlers<_DismissDragRecognizer>(
