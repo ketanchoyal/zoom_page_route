@@ -177,13 +177,10 @@ class ZoomPageRoute<T> extends PageRoute<T> {
 
   @override
   Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
-    return _ZoomPresenter(
-      route: this,
-      child: Semantics(
-        scopesRoute: true,
-        explicitChildNodes: true,
-        child: builder(context),
-      ),
+    return Semantics(
+      scopesRoute: true,
+      explicitChildNodes: true,
+      child: _ZoomPresenter(route: this, child: builder(context)),
     );
   }
 
@@ -729,10 +726,9 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                     ),
                   ),
                 ),
-                ExcludeSemantics(
-                  child: RawGestureDetector(
-                    excludeFromSemantics: true,
-                    behavior: HitTestBehavior.translucent,
+                RawGestureDetector(
+                  excludeFromSemantics: true,
+                  behavior: HitTestBehavior.translucent,
                   gestures: {
                     _DismissDragRecognizer: GestureRecognizerFactoryWithHandlers<_DismissDragRecognizer>(
                       () => _DismissDragRecognizer(axis: Axis.vertical, debugOwner: this),
@@ -764,7 +760,6 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                     ),
                   },
                   child: const SizedBox.expand(),
-                  ),
                 ),
               ],
             );
