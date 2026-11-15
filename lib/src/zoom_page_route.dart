@@ -177,10 +177,13 @@ class ZoomPageRoute<T> extends PageRoute<T> {
 
   @override
   Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
-    return Semantics(
-      scopesRoute: true,
-      explicitChildNodes: true,
-      child: _ZoomPresenter(route: this, child: builder(context)),
+    return _ZoomPresenter(
+      route: this,
+      child: Semantics(
+        scopesRoute: true,
+        explicitChildNodes: true,
+        child: builder(context),
+      ),
     );
   }
 
