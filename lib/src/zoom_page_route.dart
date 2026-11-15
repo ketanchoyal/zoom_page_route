@@ -207,17 +207,11 @@ class ZoomPageRoute<T> extends PageRoute<T> {
   ) {
     // Only reacts to a page pushed on top (the usual iOS parallax); this
     // route's own entrance is drawn by _ZoomPresenter.
-    final transition = CupertinoPageTransition(
+    return CupertinoPageTransition(
       primaryRouteAnimation: kAlwaysCompleteAnimation,
       secondaryRouteAnimation: secondaryAnimation,
       linearTransition: false,
       child: child,
-    );
-    if (opaque) return transition;
-    return Semantics(
-      scopesRoute: true,
-      explicitChildNodes: true,
-      child: transition,
     );
   }
 
