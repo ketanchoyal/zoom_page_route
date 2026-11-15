@@ -177,10 +177,13 @@ class ZoomPageRoute<T> extends PageRoute<T> {
 
   @override
   Widget buildPage(BuildContext context, Animation<double> animation, Animation<double> secondaryAnimation) {
-    return Semantics(
-      scopesRoute: true,
-      explicitChildNodes: true,
-      child: _ZoomPresenter(route: this, child: builder(context)),
+    return _ZoomPresenter(
+      route: this,
+      child: Semantics(
+        scopesRoute: true,
+        explicitChildNodes: true,
+        child: builder(context),
+      ),
     );
   }
 
@@ -619,32 +622,36 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
               children: [
                 // Dim over the route below, or the spec's blur material in its place.
                 IgnorePointer(
-                  child: effect != null
-                      ? BackdropFilter(
-                          // Off at rest: the open page covers the route below.
-                          enabled: !settled && progress > 0,
-                          // Natively full strength while dragging (progress is
-                          // 1 then) and following the transition otherwise.
-                          filter: effect.filterAt(settled ? 0 : progress),
-                          child: const SizedBox.expand(),
-                        )
-                      : ColoredBox(color: Color.fromRGBO(0, 0, 0, settled ? 0 : frame.dim)),
+                  child: ExcludeSemantics(
+                    child: effect != null
+                        ? BackdropFilter(
+                            // Off at rest: the open page covers the route below.
+                            enabled: !settled && progress > 0,
+                            // Natively full strength while dragging (progress is
+                            // 1 then) and following the transition otherwise.
+                            filter: effect.filterAt(settled ? 0 : progress),
+                            child: const SizedBox.expand(),
+                          )
+                        : ColoredBox(color: Color.fromRGBO(0, 0, 0, settled ? 0 : frame.dim)),
+                  ),
                 ),
                 // Soft shadow around the moving page (none once it is settled full screen).
                 Positioned.fromRect(
                   rect: rect,
                   child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(frame.radius),
-                        boxShadow: [
-                          BoxShadow(
-                            // Faded with a toolbar page: the blurred shadow also lies
-                            // under the page and would show through it as a dark blob.
-                            color: Color.fromRGBO(0, 0, 0, settled ? 0 : ZoomNative.shadowOpacity * pageOpacity),
-                            blurRadius: ZoomNative.shadowBlur,
-                          ),
-                        ],
+                    child: ExcludeSemantics(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(frame.radius),
+                          boxShadow: [
+                            BoxShadow(
+                              // Faded with a toolbar page: the blurred shadow also lies
+                              // under the page and would show through it as a dark blob.
+                              color: Color.fromRGBO(0, 0, 0, settled ? 0 : ZoomNative.shadowOpacity * pageOpacity),
+                              blurRadius: ZoomNative.shadowBlur,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -654,18 +661,20 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                 Positioned.fromRect(
                   rect: rect,
                   child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(frame.radius),
-                        // Under the page, so what shows of it is glass · (1 − page
-                        // alpha). Natively it holds while opening and fades with
-                        // the page's size while closing (≈ progress).
-                        color: _spec.toolbarGlassColor.withValues(
-                          alpha: !toolbar || settled || _dragAxis != null
-                              ? 0
-                              : closing
-                              ? math.min(ZoomNative.toolbarGlassOpacity, progress) * _toolbarGone(progress)
-                              : ZoomNative.toolbarGlassOpacity,
+                    child: ExcludeSemantics(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(frame.radius),
+                          // Under the page, so what shows of it is glass · (1 − page
+                          // alpha). Natively it holds while opening and fades with
+                          // the page's size while closing (≈ progress).
+                          color: _spec.toolbarGlassColor.withValues(
+                            alpha: !toolbar || settled || _dragAxis != null
+                                ? 0
+                                : closing
+                                ? math.min(ZoomNative.toolbarGlassOpacity, progress) * _toolbarGone(progress)
+                                : ZoomNative.toolbarGlassOpacity,
+                          ),
                         ),
                       ),
                     ),
@@ -726,40 +735,42 @@ class _ZoomPresenterState extends State<_ZoomPresenter> with SingleTickerProvide
                     ),
                   ),
                 ),
-                RawGestureDetector(
-                  excludeFromSemantics: true,
-                  behavior: HitTestBehavior.translucent,
-                  gestures: {
-                    _DismissDragRecognizer: GestureRecognizerFactoryWithHandlers<_DismissDragRecognizer>(
-                      () => _DismissDragRecognizer(axis: Axis.vertical, debugOwner: this),
-                      (recognizer) => recognizer
-                        ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
-                        ..canStart = ((position) => _canStartDismiss && _contentAtTopAt(position))
-                        ..onStart = ((details) => _onDragStart(_DragAxis.vertical, details))
-                        ..onUpdate = _onDragUpdate
-                        ..onEnd = _onDragEnd
-                        ..onCancel = _onDragCancel,
-                    ),
-                    _EdgeDismissDragRecognizer: GestureRecognizerFactoryWithHandlers<_EdgeDismissDragRecognizer>(
-                      () => _EdgeDismissDragRecognizer(debugOwner: this),
-                      (recognizer) => recognizer
-                        ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
-                        ..canStart = ((position) {
-                          final box = context.findRenderObject();
-                          final local = box is RenderBox ? box.globalToLocal(position) : position;
-                          // On Android that edge belongs to the system back
-                          // gesture (handled as predictive back instead).
-                          return _canStartDismiss &&
-                              local.dx <= _spec.edgeWidth &&
-                              defaultTargetPlatform != TargetPlatform.android;
-                        })
-                        ..onStart = ((details) => _onDragStart(_DragAxis.edge, details))
-                        ..onUpdate = _onDragUpdate
-                        ..onEnd = _onDragEnd
-                        ..onCancel = _onDragCancel,
-                    ),
-                  },
-                  child: const SizedBox.expand(),
+                ExcludeSemantics(
+                  child: RawGestureDetector(
+                    excludeFromSemantics: true,
+                    behavior: HitTestBehavior.translucent,
+                    gestures: {
+                      _DismissDragRecognizer: GestureRecognizerFactoryWithHandlers<_DismissDragRecognizer>(
+                        () => _DismissDragRecognizer(axis: Axis.vertical, debugOwner: this),
+                        (recognizer) => recognizer
+                          ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
+                          ..canStart = ((position) => _canStartDismiss && _contentAtTopAt(position))
+                          ..onStart = ((details) => _onDragStart(_DragAxis.vertical, details))
+                          ..onUpdate = _onDragUpdate
+                          ..onEnd = _onDragEnd
+                          ..onCancel = _onDragCancel,
+                      ),
+                      _EdgeDismissDragRecognizer: GestureRecognizerFactoryWithHandlers<_EdgeDismissDragRecognizer>(
+                        () => _EdgeDismissDragRecognizer(debugOwner: this),
+                        (recognizer) => recognizer
+                          ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
+                          ..canStart = ((position) {
+                            final box = context.findRenderObject();
+                            final local = box is RenderBox ? box.globalToLocal(position) : position;
+                            // On Android that edge belongs to the system back
+                            // gesture (handled as predictive back instead).
+                            return _canStartDismiss &&
+                                local.dx <= _spec.edgeWidth &&
+                                defaultTargetPlatform != TargetPlatform.android;
+                          })
+                          ..onStart = ((details) => _onDragStart(_DragAxis.edge, details))
+                          ..onUpdate = _onDragUpdate
+                          ..onEnd = _onDragEnd
+                          ..onCancel = _onDragCancel,
+                      ),
+                    },
+                    child: const SizedBox.expand(),
+                  ),
                 ),
               ],
             );
